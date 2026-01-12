@@ -45,6 +45,13 @@ graph TB
             BU_JAR[Build JAR]
         end
 
+        subgraph "Frontend CI"
+            FE_INST[npm ci]
+            FE_LINT[Lint + Stylelint]
+            FE_BUILD[Build Prod]
+            FE_TEST[Unit Tests]
+        end
+
         subgraph "Docker Build (main branch)"
             D_BC[Build BackCore Image]
             D_BU[Build BackUser Image]
@@ -54,7 +61,7 @@ graph TB
     end
 
     subgraph "Azure Pipelines (Existing)"
-        AZ_FE[Frontend CI/CD]
+        AZ_FE[Frontend CD]
         AZ_HELM[Helm Deploy to AKS]
     end
 
@@ -66,6 +73,7 @@ graph TB
 
     PUSH --> BC_FMT
     PUSH --> BU_FMT
+    PUSH --> FE_INST
     BC_FMT --> BC_CHK
     BC_CHK --> BC_TEST
     BC_TEST --> BC_COV
@@ -74,6 +82,9 @@ graph TB
     BU_CHK --> BU_TEST
     BU_TEST --> BU_COV
     BU_COV --> BU_JAR
+    FE_INST --> FE_LINT
+    FE_LINT --> FE_BUILD
+    FE_BUILD --> FE_TEST
 
     PUSH -->|main branch| D_BC
     PUSH -->|main branch| D_BU
@@ -91,6 +102,7 @@ graph TB
     style GHCR fill:#0969da,color:#fff
     style BC_TEST fill:#007396,color:#fff
     style BU_TEST fill:#007396,color:#fff
+    style FE_TEST fill:#dd0031,color:#fff
     style AZ_FE fill:#0078d4,color:#fff
 ```
 
@@ -133,6 +145,26 @@ DATASOURCE_PASSWORD: greencity
 ### BackUser CI (`greencity-backuser/.github/workflows/ci.yml`)
 
 Same structure as BackCore CI.
+
+---
+
+### Frontend CI (`greencity-frontend/.github/workflows/ci.yml`)
+
+**Triggers:** Push, Pull Request (all branches)
+
+**Jobs:**
+1. **build** - Build and test Angular application
+   - Checkout code
+   - Setup Node.js 14.x with npm cache
+   - Install dependencies (`npm ci`)
+   - Run linter (`npm run lint`)
+   - Run stylelint (`npm run stylelint`)
+   - Build production bundle (`npm run build-prod`)
+   - Run unit tests (`npm run test -- --watch=false --browsers=ChromeHeadless`)
+
+**Environment:**
+- Node.js 14.x
+- ChromeHeadless for unit tests
 
 ---
 
@@ -201,12 +233,20 @@ ghcr.io/1g0s/greencity-frontend:2559791
 # Check workflow files exist
 ls -la greencity-backcore/.github/workflows/
 ls -la greencity-backuser/.github/workflows/
+ls -la greencity-frontend/.github/workflows/
 ls -la .github/workflows/
 
 # Validate YAML syntax
 yamllint greencity-backcore/.github/workflows/ci.yml
 yamllint greencity-backuser/.github/workflows/ci.yml
+yamllint greencity-frontend/.github/workflows/ci.yml
 yamllint .github/workflows/docker.yml
+
+# Check GitHub Actions status
+gh run list --repo DevOps-ProjectLevel/greencity-backcore-1g0s --limit 1
+gh run list --repo DevOps-ProjectLevel/greencity-backuser-1g0s --limit 1
+gh run list --repo DevOps-ProjectLevel/greencity-frontend-1g0s --limit 1
+gh run list --repo 1g0s/greencity-infra --limit 1
 ```
 
 ---

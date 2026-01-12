@@ -74,10 +74,10 @@ greencity-infra/
 ```
 
 ### Component Repos Include
-- ✅ Frontend: Azure Pipelines CI/CD, Helm chart
+- ✅ Frontend: GitHub Actions CI, Azure Pipelines CD, Helm chart
 - ✅ Backend: Spring profiles for Docker/dev/prod
 - ✅ Dockerfiles (all 3 repos)
-- ✅ CI workflows (.github/workflows/ci.yml) for backends
+- ✅ CI workflows (.github/workflows/ci.yml) for all 3 repos
 
 ---
 

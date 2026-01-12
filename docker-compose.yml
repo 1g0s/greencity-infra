@@ -1,0 +1,117 @@
+version: '3.8'
+
+# GreenCity Development Environment
+# Usage: docker compose up -d
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: greencity-postgres
+    environment:
+      POSTGRES_DB: greencity
+      POSTGRES_USER: greencity
+      POSTGRES_PASSWORD: greencity_dev
+    volumes:
+      - greencity_pgdata:/var/lib/postgresql/data
+    ports:
+      - "5434:5432"  # External port 5434 to avoid conflict with existing postgres
+    networks:
+      - greencity-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U greencity -d greencity"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backcore:
+    image: maven:3.9-eclipse-temurin-21
+    container_name: greencity-backcore
+    working_dir: /app
+    command: >
+      sh -c "mvn formatter:format && mvn clean package -DskipTests &&
+             java -jar ./core/target/core.jar --spring.profiles.active=docker"
+    environment:
+      PROFILE: docker
+      DATASOURCE_URL: jdbc:postgresql://postgres:5432/greencity
+      DATASOURCE_USER: greencity
+      DATASOURCE_PASSWORD: greencity_dev
+      # Email (use placeholder for dev)
+      EMAIL_ADDRESS: dev@localhost
+      EMAIL_PASSWORD: devpass
+      # Google APIs (placeholder)
+      GOOGLE_CLIENT_ID: placeholder
+      GOOGLE_API_KEY: placeholder
+      GOOGLE_CLIENT_ID_MANAGER: placeholder
+      # Storage (placeholder)
+      BUCKET_NAME: dev-bucket
+      STATIC_URL: http://localhost:8080/
+      DEFAULT_PROFILE_PICTURE: https://via.placeholder.com/150
+      # Azure Storage (placeholder)
+      AZURE_CONNECTION_STRING: DefaultEndpointsProtocol=https;AccountName=devaccount;AccountKey=placeholder;EndpointSuffix=core.windows.net
+      AZURE_CONTAINER_NAME: devcontainer
+      # Cloud settings
+      CLOUD_NAME: dev-cloud
+      API_KEY: placeholder
+      API_SECRET: placeholder
+      MAX_FILE_SIZE: 10MB
+      MAX_REQUEST_SIZE: 10MB
+      GOOGLE_APPLICATION_CREDENTIALS: /tmp/google-creds.json
+      # Service links
+      CHAT_LINK: http://backuser:8060
+    volumes:
+      - ./greencity-backcore:/app
+      - greencity_maven_cache:/root/.m2
+    ports:
+      - "8080:8080"
+    networks:
+      - greencity-net
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  backuser:
+    image: maven:3.9-eclipse-temurin-21
+    container_name: greencity-backuser
+    working_dir: /app
+    command: >
+      sh -c "mvn formatter:format && mvn clean package -DskipTests &&
+             java -jar ./core/target/core.jar --spring.profiles.active=docker"
+    environment:
+      PROFILE: docker
+      DATASOURCE_URL: jdbc:postgresql://postgres:5432/greencity
+      DATASOURCE_USER: greencity
+      DATASOURCE_PASSWORD: greencity_dev
+      # Email (use placeholder for dev)
+      EMAIL_ADDRESS: dev@localhost
+      EMAIL_PASSWORD: devpass
+      # Google APIs (placeholder)
+      GOOGLE_CLIENT_ID: placeholder
+      GOOGLE_API_KEY: placeholder
+      GOOGLE_CLIENT_ID_MANAGER: placeholder
+      # Azure Storage (placeholder)
+      AZURE_CONNECTION_STRING: DefaultEndpointsProtocol=https;AccountName=devaccount;AccountKey=placeholder;EndpointSuffix=core.windows.net
+      AZURE_CONTAINER_NAME: devcontainer
+      # Cloud settings
+      CLOUD_NAME: dev-cloud
+      API_KEY: placeholder
+      API_SECRET: placeholder
+      # Service links
+      CHAT_LINK: http://backcore:8080
+    volumes:
+      - ./greencity-backuser:/app
+      - greencity_maven_cache:/root/.m2
+    ports:
+      - "8060:8060"
+    networks:
+      - greencity-net
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+networks:
+  greencity-net:
+    external: true
+
+volumes:
+  greencity_pgdata:
+  greencity_maven_cache:

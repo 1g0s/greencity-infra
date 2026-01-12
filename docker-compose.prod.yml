@@ -1,0 +1,112 @@
+version: '3.8'
+
+# GreenCity Production Environment
+# Usage: docker compose -f docker-compose.prod.yml up -d
+# Requires: .env.prod file with secrets
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: greencity-postgres
+    environment:
+      POSTGRES_DB: greencity
+      POSTGRES_USER: ${DB_USER:-greencity}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Database password required}
+    volumes:
+      - greencity_pgdata:/var/lib/postgresql/data
+    networks:
+      - greencity-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-greencity} -d greencity"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  backcore:
+    image: greencity-backcore:prod
+    container_name: greencity-backcore
+    environment:
+      PROFILE: docker
+      DATASOURCE_URL: jdbc:postgresql://postgres:5432/greencity
+      DATASOURCE_USER: ${DB_USER:-greencity}
+      DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      # Email
+      EMAIL_ADDRESS: ${EMAIL_ADDRESS:-dev@localhost}
+      EMAIL_PASSWORD: ${EMAIL_PASSWORD:-devpass}
+      # Google APIs
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-placeholder}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-placeholder}
+      GOOGLE_CLIENT_ID_MANAGER: ${GOOGLE_CLIENT_ID_MANAGER:-placeholder}
+      # Storage
+      BUCKET_NAME: ${BUCKET_NAME:-dev-bucket}
+      STATIC_URL: ${STATIC_URL:-http://localhost:8080/}
+      DEFAULT_PROFILE_PICTURE: ${DEFAULT_PROFILE_PICTURE:-https://via.placeholder.com/150}
+      # Azure Storage
+      AZURE_CONNECTION_STRING: ${AZURE_CONNECTION_STRING}
+      AZURE_CONTAINER_NAME: ${AZURE_CONTAINER_NAME:-devcontainer}
+      # Cloud settings
+      CLOUD_NAME: ${CLOUD_NAME:-dev-cloud}
+      API_KEY: ${API_KEY:-placeholder}
+      API_SECRET: ${API_SECRET:-placeholder}
+      MAX_FILE_SIZE: ${MAX_FILE_SIZE:-10MB}
+      MAX_REQUEST_SIZE: ${MAX_REQUEST_SIZE:-10MB}
+      GOOGLE_APPLICATION_CREDENTIALS: /tmp/google-creds.json
+      # Service links
+      CHAT_LINK: http://backuser:8060
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - greencity-net
+    restart: unless-stopped
+
+  backuser:
+    image: greencity-backuser:prod
+    container_name: greencity-backuser
+    environment:
+      PROFILE: docker
+      DATASOURCE_URL: jdbc:postgresql://postgres:5432/greencity
+      DATASOURCE_USER: ${DB_USER:-greencity}
+      DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      # Email
+      EMAIL_ADDRESS: ${EMAIL_ADDRESS:-dev@localhost}
+      EMAIL_PASSWORD: ${EMAIL_PASSWORD:-devpass}
+      # Google APIs
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-placeholder}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-placeholder}
+      GOOGLE_CLIENT_ID_MANAGER: ${GOOGLE_CLIENT_ID_MANAGER:-placeholder}
+      # Azure Storage
+      AZURE_CONNECTION_STRING: ${AZURE_CONNECTION_STRING}
+      AZURE_CONTAINER_NAME: ${AZURE_CONTAINER_NAME:-devcontainer}
+      # Cloud settings
+      CLOUD_NAME: ${CLOUD_NAME:-dev-cloud}
+      API_KEY: ${API_KEY:-placeholder}
+      API_SECRET: ${API_SECRET:-placeholder}
+      # Service links
+      CHAT_LINK: http://backcore:8080
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - greencity-net
+    restart: unless-stopped
+
+  frontend:
+    image: greencity-frontend:prod
+    container_name: greencity-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backcore
+      - backuser
+    networks:
+      - greencity-net
+    restart: unless-stopped
+
+networks:
+  greencity-net:
+    driver: bridge
+
+volumes:
+  greencity_pgdata:

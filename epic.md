@@ -7,13 +7,16 @@ There are three parts: backcore, backuser, and frontend
 Key Features
 Authentication and Registration: Users can create an account.
 
-А user can start doing an environment-friendly habit and track their progress with a habit tracker…
+A user can start doing an environment-friendly habit and track their progress with a habit tracker.
 
-Backcore Repository git@github.com:DevOps-ProjectLevel/greencity-backcore-1g0s.git
+## Repositories
 
-Backuser Repository git@github.com:DevOps-ProjectLevel/greencity-backuser-1g0s.git
-
-Frontend Repository git@github.com:DevOps-ProjectLevel/greencity-frontend-1g0s.git
+| Repository | Purpose | URL |
+|------------|---------|-----|
+| **greencity-infra** | Infrastructure & DevOps | `git@github.com:DevOps-ProjectLevel/greencity-infra.git` |
+| **greencity-backcore** | Java Backend Core API | `git@github.com:DevOps-ProjectLevel/greencity-backcore-1g0s.git` |
+| **greencity-backuser** | Java Backend User API | `git@github.com:DevOps-ProjectLevel/greencity-backuser-1g0s.git` |
+| **greencity-frontend** | Angular Frontend | `git@github.com:DevOps-ProjectLevel/greencity-frontend-1g0s.git` |
 
 ---
 
@@ -53,10 +56,28 @@ Frontend Repository git@github.com:DevOps-ProjectLevel/greencity-frontend-1g0s.g
 | **Database** | PostgreSQL | 5432 |
 | **Storage** | Azure Blob / Google Cloud Storage | - |
 
-### Existing Infrastructure
+### Infrastructure Repository Structure
+
+```
+greencity-infra/
+├── .github/workflows/
+│   └── docker.yml           # Docker build & push to ghcr.io
+├── docker-compose.yml       # Development environment
+├── docker-compose.prod.yml  # Production deployment
+├── .env.prod.example        # Environment template
+├── epic.md                  # This file
+├── README.md                # Quick start guide
+└── tasks/                   # Task completion reports
+    ├── task-01-setup-webapp.md
+    ├── task-02-containerization.md
+    └── task-04-cicd.md
+```
+
+### Component Repos Include
 - ✅ Frontend: Azure Pipelines CI/CD, Helm chart
 - ✅ Backend: Spring profiles for Docker/dev/prod
-- ⚠️ Missing: Backend Dockerfiles, docker-compose, backend Helm charts
+- ✅ Dockerfiles (all 3 repos)
+- ✅ CI workflows (.github/workflows/ci.yml) for backends
 
 ---
 
@@ -181,6 +202,7 @@ GOOGLE_API_KEY=<api-key>
 | 2026-01-06 | Task 2 | Created Dockerfiles, nginx.conf, docker-compose.prod.yml |
 | 2026-01-11 | Task 2 | Built all :prod images, verified full stack (4 containers healthy) |
 | 2026-01-11 | Task 4 | Created GitHub Actions CI/CD workflows for backcore, backuser, and Docker builds |
+| 2026-01-12 | Infra | Created infrastructure repo with git history and tags for Tasks 1, 2, 4 |
 
 ---
 

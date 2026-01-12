@@ -194,6 +194,7 @@ GOOGLE_API_KEY=<api-key>
 **Deliverables:**
 - [x] BackCore CI workflow - Maven build, JUnit tests, JaCoCo coverage
 - [x] BackUser CI workflow - Maven build, JUnit tests, JaCoCo coverage
+- [x] Frontend CI workflow - npm ci, lint, stylelint, build, test
 - [x] Docker build workflow - Build & push all 3 images to ghcr.io
 - [x] CHECKOUT_TOKEN secret - Cross-repo access for Docker builds
 - [x] Code formatting fixes - All Java files pass formatter validation
@@ -205,7 +206,7 @@ ghcr.io/1g0s/greencity-backuser:latest
 ghcr.io/1g0s/greencity-frontend:latest
 ```
 
-**Note:** Frontend already has Azure Pipelines CI/CD (kept as-is)
+**Note:** Frontend also has Azure Pipelines for AKS deployment (kept as-is)
 
 **Status:** ✅ VERIFIED COMPLETE (January 12, 2026)
 
@@ -245,6 +246,7 @@ ghcr.io/1g0s/greencity-frontend:latest
 | 2026-01-12 | Task 4 | Fixed CI builds: applied code formatting (47 files backcore, 1 file backuser) |
 | 2026-01-12 | Task 4 | Fixed Docker builds: added CHECKOUT_TOKEN, fixed frontend package-lock.json |
 | 2026-01-12 | Task 4 | Verified all CI/CD: BackCore CI ✅, BackUser CI ✅, Docker builds ✅ (3 images on ghcr.io) |
+| 2026-01-12 | Task 4 | Added Frontend CI workflow (npm ci, lint, stylelint, build, test) - all passing |
 
 ---
 

@@ -13,9 +13,10 @@
 |------|----------|---------|
 | BackCore CI workflow | `greencity-backcore/.github/workflows/ci.yml` | Maven build, JUnit tests, JaCoCo coverage |
 | BackUser CI workflow | `greencity-backuser/.github/workflows/ci.yml` | Maven build, JUnit tests, JaCoCo coverage |
+| Frontend CI workflow | `greencity-frontend/.github/workflows/ci.yml` | npm ci, lint, stylelint, build, test |
 | Docker build workflow | `.github/workflows/docker.yml` | Build & push all 3 images to ghcr.io |
 
-**Note:** Frontend already has Azure Pipelines CI/CD (kept as-is)
+**Note:** Frontend also has Azure Pipelines for AKS deployment (kept as-is)
 
 ---
 
@@ -185,6 +186,7 @@ ghcr.io/1g0s/greencity-frontend:2559791
 |-----------|-------------------|-------|
 | BackCore CI | ~3 min | Maven + tests + JaCoCo |
 | BackUser CI | ~2.5 min | Maven + tests + JaCoCo |
+| Frontend CI | 9m31s | npm ci + lint + build + test |
 | Docker BackCore | 22s - 4m15s | Cached vs cold build |
 | Docker BackUser | 3m7s - 3m27s | Multi-stage Maven build |
 | Docker Frontend | 7m2s | Angular build + npm install |
@@ -299,11 +301,12 @@ npm ERR! cipm can only install packages when your package.json and package-lock.
 
 ## Verification Results
 
-| Workflow | Status | Run ID |
-|----------|--------|--------|
-| BackCore CI | ✅ Passing | [#20934293687](https://github.com/DevOps-ProjectLevel/greencity-backcore-1g0s/actions/runs/20934293687) |
-| BackUser CI | ✅ Passing | [#20934296758](https://github.com/DevOps-ProjectLevel/greencity-backuser-1g0s/actions/runs/20934296758) |
-| Docker Build | ✅ Passing | [#20934641733](https://github.com/1g0s/greencity-infra/actions/runs/20934641733) |
+| Workflow | Status | Run ID | Time |
+|----------|--------|--------|------|
+| BackCore CI | ✅ Passing | [#20934293687](https://github.com/DevOps-ProjectLevel/greencity-backcore-1g0s/actions/runs/20934293687) | ~3m |
+| BackUser CI | ✅ Passing | [#20934296758](https://github.com/DevOps-ProjectLevel/greencity-backuser-1g0s/actions/runs/20934296758) | ~2.5m |
+| Frontend CI | ✅ Passing | [#20935047196](https://github.com/DevOps-ProjectLevel/greencity-frontend-1g0s/actions/runs/20935047196) | 9m31s |
+| Docker Build | ✅ Passing | [#20934641733](https://github.com/1g0s/greencity-infra/actions/runs/20934641733) | ~7m |
 
 ---
 

@@ -203,6 +203,7 @@ GOOGLE_API_KEY=<api-key>
 | 2026-01-11 | Task 2 | Built all :prod images, verified full stack (4 containers healthy) |
 | 2026-01-11 | Task 4 | Created GitHub Actions CI/CD workflows for backcore, backuser, and Docker builds |
 | 2026-01-12 | Infra | Created infrastructure repo with git history and tags for Tasks 1, 2, 4 |
+| 2026-01-12 | Task 2,4 | Pushed Dockerfiles, CI workflows to component repos (DevOps-ProjectLevel) |
 
 ---
 

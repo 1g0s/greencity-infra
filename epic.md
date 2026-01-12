@@ -13,7 +13,7 @@ A user can start doing an environment-friendly habit and track their progress wi
 
 | Repository | Purpose | URL |
 |------------|---------|-----|
-| **greencity-infra** | Infrastructure & DevOps | `git@github.com:DevOps-ProjectLevel/greencity-infra.git` |
+| **greencity-infra** | Infrastructure & DevOps | `git@github.com:1g0s/greencity-infra.git` |
 | **greencity-backcore** | Java Backend Core API | `git@github.com:DevOps-ProjectLevel/greencity-backcore-1g0s.git` |
 | **greencity-backuser** | Java Backend User API | `git@github.com:DevOps-ProjectLevel/greencity-backuser-1g0s.git` |
 | **greencity-frontend** | Angular Frontend | `git@github.com:DevOps-ProjectLevel/greencity-frontend-1g0s.git` |

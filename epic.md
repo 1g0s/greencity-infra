@@ -25,7 +25,7 @@ A user can start doing an environment-friendly habit and track their progress wi
 ### Core Tasks (in order)
 1. Setup a Webapp
 2. Deploying a Containerized Web Application
-3. Implement Infrastructure as Code
+3. Implement Infrastructure as Code (Vagrant + Ansible)
 4. Implement a Continuous Integration/Continuous Delivery
 5. Setup Load Balancing for Webapp
    - Deploy couple servers
@@ -158,6 +158,35 @@ GOOGLE_API_KEY=<api-key>
 
 ---
 
+### Task 3: Infrastructure as Code (Vagrant + Ansible)
+
+**Objective:** Provision local development/test infrastructure using Infrastructure as Code tools
+
+**Requirements:**
+- Vagrant for VM provisioning (VirtualBox provider)
+- Ansible for configuration management and application deployment
+- Reproducible local environment that mirrors production
+
+**Deliverables:**
+- [ ] Vagrantfile - Define VM(s) for the application stack
+- [ ] Ansible inventory - Host definitions
+- [ ] Ansible playbooks - Provision and deploy application
+  - [ ] Install Docker, Java 21, and dependencies
+  - [ ] Deploy PostgreSQL container
+  - [ ] Deploy backcore container
+  - [ ] Deploy backuser container
+  - [ ] Deploy frontend container
+- [ ] README for IaC setup instructions
+
+**Infrastructure:**
+| VM | Purpose | Resources |
+|----|---------|-----------|
+| greencity-vm | Full stack deployment | 2 CPU, 6GB RAM |
+
+**Status:** ⬜ Not Started
+
+---
+
 ### Task 4: CI/CD Pipeline
 
 **Objective:** Implement automated CI/CD pipelines with GitHub Actions
@@ -166,10 +195,19 @@ GOOGLE_API_KEY=<api-key>
 - [x] BackCore CI workflow - Maven build, JUnit tests, JaCoCo coverage
 - [x] BackUser CI workflow - Maven build, JUnit tests, JaCoCo coverage
 - [x] Docker build workflow - Build & push all 3 images to ghcr.io
+- [x] CHECKOUT_TOKEN secret - Cross-repo access for Docker builds
+- [x] Code formatting fixes - All Java files pass formatter validation
+
+**Container Images (ghcr.io):**
+```
+ghcr.io/1g0s/greencity-backcore:latest
+ghcr.io/1g0s/greencity-backuser:latest
+ghcr.io/1g0s/greencity-frontend:latest
+```
 
 **Note:** Frontend already has Azure Pipelines CI/CD (kept as-is)
 
-**Status:** IMPLEMENTED (January 11, 2026)
+**Status:** ✅ VERIFIED COMPLETE (January 12, 2026)
 
 > **Full Report:** [tasks/task-04-cicd.md](tasks/task-04-cicd.md)
 
@@ -181,8 +219,8 @@ GOOGLE_API_KEY=<api-key>
 |------|--------|-------|
 | 1. Setup Webapp | ✅ Complete | All services running, network accessible |
 | 2. Containerization | ✅ Verified | All images built, tested, all 4 containers healthy |
-| 3. Infrastructure as Code | ⏭️ Skipped | Merged into Task 8 (Cloud Migration) |
-| 4. CI/CD Pipeline | ✅ Implemented | GitHub Actions + ghcr.io (backends), Azure Pipelines (frontend) |
+| 3. Infrastructure as Code | ⬜ Not Started | Vagrant + Ansible local provisioning |
+| 4. CI/CD Pipeline | ✅ Verified | All CI passing, Docker images on ghcr.io |
 | 5. Load Balancing | ⬜ Not Started | |
 | 6. Automation | ⬜ Not Started | |
 | 7. Kubernetes | ⬜ Not Started | Frontend has Helm chart |
@@ -204,6 +242,9 @@ GOOGLE_API_KEY=<api-key>
 | 2026-01-11 | Task 4 | Created GitHub Actions CI/CD workflows for backcore, backuser, and Docker builds |
 | 2026-01-12 | Infra | Created infrastructure repo with git history and tags for Tasks 1, 2, 4 |
 | 2026-01-12 | Task 2,4 | Pushed Dockerfiles, CI workflows to component repos (DevOps-ProjectLevel) |
+| 2026-01-12 | Task 4 | Fixed CI builds: applied code formatting (47 files backcore, 1 file backuser) |
+| 2026-01-12 | Task 4 | Fixed Docker builds: added CHECKOUT_TOKEN, fixed frontend package-lock.json |
+| 2026-01-12 | Task 4 | Verified all CI/CD: BackCore CI ✅, BackUser CI ✅, Docker builds ✅ (3 images on ghcr.io) |
 
 ---
 

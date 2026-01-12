@@ -1,8 +1,8 @@
 # Task 4: CI/CD Implementation - Completion Report
 
 **Project:** GreenCity
-**Status:** IMPLEMENTED
-**Date:** January 11, 2026
+**Status:** ✅ VERIFIED COMPLETE
+**Date:** January 11-12, 2026
 **Environment:** GitHub Actions + GitHub Container Registry
 
 ---
@@ -161,29 +161,33 @@ Same structure as BackCore CI.
 
 **Registry:** GitHub Container Registry (ghcr.io)
 
-**Images:**
+**Images (Verified January 12, 2026):**
 ```
-ghcr.io/<owner>/greencity-backcore:latest
-ghcr.io/<owner>/greencity-backcore:<sha>
-ghcr.io/<owner>/greencity-backuser:latest
-ghcr.io/<owner>/greencity-backuser:<sha>
-ghcr.io/<owner>/greencity-frontend:latest
-ghcr.io/<owner>/greencity-frontend:<sha>
+ghcr.io/1g0s/greencity-backcore:latest
+ghcr.io/1g0s/greencity-backcore:2559791
+
+ghcr.io/1g0s/greencity-backuser:latest
+ghcr.io/1g0s/greencity-backuser:2559791
+
+ghcr.io/1g0s/greencity-frontend:latest
+ghcr.io/1g0s/greencity-frontend:2559791
 ```
 
-**Authentication:** Uses built-in `GITHUB_TOKEN`
+**Authentication:**
+- CI workflows use built-in `GITHUB_TOKEN`
+- Docker builds use `CHECKOUT_TOKEN` secret (PAT) for cross-repo checkout
 
 ---
 
 ## Build Times
 
-| Component | Estimated Build Time | Notes |
-|-----------|---------------------|-------|
-| BackCore CI | 10-15 min | Maven + tests |
-| BackUser CI | 10-15 min | Maven + tests |
-| Docker BackCore | 10-15 min | Multi-stage Maven build |
-| Docker BackUser | 10-15 min | Multi-stage Maven build |
-| Docker Frontend | ~60s | Angular build |
+| Component | Actual Build Time | Notes |
+|-----------|-------------------|-------|
+| BackCore CI | ~3 min | Maven + tests + JaCoCo |
+| BackUser CI | ~2.5 min | Maven + tests + JaCoCo |
+| Docker BackCore | 22s - 4m15s | Cached vs cold build |
+| Docker BackUser | 3m7s - 3m27s | Multi-stage Maven build |
+| Docker Frontend | 7m2s | Angular build + npm install |
 
 **Optimization:** Maven dependency caching enabled via `actions/setup-java@v4`
 
@@ -248,12 +252,67 @@ These deploy to Azure Kubernetes Service via Helm charts.
 
 ---
 
+## Issues Resolved (January 12, 2026)
+
+### 1. Code Formatter Validation Failure
+
+**Problem:** CI builds failing with `formatter-maven-plugin:validate` error
+```
+File 'UserFilterDtoResponse.java' has not been previously formatted
+```
+
+**Solution:** Ran `mvn formatter:format` to format all Java files
+- BackCore: 47 files formatted
+- BackUser: 1 file formatted (SecurityConfig.java)
+
+### 2. Docker Build - Component Repos Not Found
+
+**Problem:** Docker builds failing with path not found errors
+```
+ERROR: failed to build: unable to prepare context: path "./greencity-backcore" not found
+```
+
+**Cause:** Component repos are in DevOps-ProjectLevel org, not in infra repo
+
+**Solution:**
+1. Created `CHECKOUT_TOKEN` secret (PAT with repo access)
+2. Updated `docker.yml` to checkout each component repo separately:
+   ```yaml
+   - name: Checkout backcore repo
+     uses: actions/checkout@v4
+     with:
+       repository: DevOps-ProjectLevel/greencity-backcore-1g0s
+       token: ${{ secrets.CHECKOUT_TOKEN }}
+       path: greencity-backcore
+   ```
+
+### 3. Frontend npm ci Sync Error
+
+**Problem:** Frontend Docker build failing with lock file sync error
+```
+npm ERR! cipm can only install packages when your package.json and package-lock.json are in sync
+```
+
+**Solution:** Regenerated `package-lock.json` with `npm install`
+
+---
+
+## Verification Results
+
+| Workflow | Status | Run ID |
+|----------|--------|--------|
+| BackCore CI | ✅ Passing | [#20934293687](https://github.com/DevOps-ProjectLevel/greencity-backcore-1g0s/actions/runs/20934293687) |
+| BackUser CI | ✅ Passing | [#20934296758](https://github.com/DevOps-ProjectLevel/greencity-backuser-1g0s/actions/runs/20934296758) |
+| Docker Build | ✅ Passing | [#20934641733](https://github.com/1g0s/greencity-infra/actions/runs/20934641733) |
+
+---
+
 ## Next Steps
 
-- [ ] Push workflows to GitHub repositories
-- [ ] Verify CI workflows pass
-- [ ] Verify Docker builds complete
-- [ ] Enable branch protection rules
-- [ ] (Optional) Add SonarCloud integration
-- [ ] (Optional) Create Helm charts for backends
+- [x] Push workflows to GitHub repositories
+- [x] Verify CI workflows pass
+- [x] Verify Docker builds complete
+- [ ] Enable branch protection rules (optional)
+- [ ] Add SonarCloud integration (optional)
+- [ ] Create Helm charts for backends (optional)
 - [ ] Task 5: Load Balancing

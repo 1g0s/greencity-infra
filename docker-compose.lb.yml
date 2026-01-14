@@ -1,0 +1,286 @@
+# GreenCity Load Balancer Environment
+# Usage: docker compose -f docker-compose.lb.yml up -d
+# Requires: .env.prod file with secrets
+#
+# Architecture:
+# - 1x Nginx (load balancer + frontend)
+# - 3x BackCore instances
+# - 3x BackUser instances
+# - 1x PostgreSQL
+
+services:
+  # ===========================================
+  # NGINX LOAD BALANCER + FRONTEND
+  # ===========================================
+  nginx:
+    image: ghcr.io/1g0s/greencity-frontend:latest
+    container_name: greencity-lb
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx-lb.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - backcore1
+      - backcore2
+      - backcore3
+      - backuser1
+      - backuser2
+      - backuser3
+    networks:
+      - greencity-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/nginx-health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  # ===========================================
+  # BACKCORE INSTANCES (x3)
+  # ===========================================
+  backcore1:
+    image: ghcr.io/1g0s/greencity-backcore:latest
+    container_name: greencity-backcore-1
+    environment:
+      PROFILE: docker
+      SERVER_ID: backcore-1
+      DATASOURCE_URL: jdbc:postgresql://postgres:5432/greencity
+      DATASOURCE_USER: ${DB_USER:-greencity}
+      DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      EMAIL_ADDRESS: ${EMAIL_ADDRESS:-dev@localhost}
+      EMAIL_PASSWORD: ${EMAIL_PASSWORD:-devpass}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-placeholder}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-placeholder}
+      GOOGLE_CLIENT_ID_MANAGER: ${GOOGLE_CLIENT_ID_MANAGER:-placeholder}
+      BUCKET_NAME: ${BUCKET_NAME:-dev-bucket}
+      STATIC_URL: ${STATIC_URL:-http://localhost:8080/}
+      DEFAULT_PROFILE_PICTURE: ${DEFAULT_PROFILE_PICTURE:-https://via.placeholder.com/150}
+      AZURE_CONNECTION_STRING: ${AZURE_CONNECTION_STRING}
+      AZURE_CONTAINER_NAME: ${AZURE_CONTAINER_NAME:-devcontainer}
+      CLOUD_NAME: ${CLOUD_NAME:-dev-cloud}
+      API_KEY: ${API_KEY:-placeholder}
+      API_SECRET: ${API_SECRET:-placeholder}
+      MAX_FILE_SIZE: ${MAX_FILE_SIZE:-10MB}
+      MAX_REQUEST_SIZE: ${MAX_REQUEST_SIZE:-10MB}
+      GOOGLE_APPLICATION_CREDENTIALS: /tmp/google-creds.json
+      CHAT_LINK: http://backuser_pool
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - greencity-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:8080/ 2>&1; e=$?; [ $e -eq 0 ] || [ $e -eq 6 ] || [ $e -eq 8 ]"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+
+  backcore2:
+    image: ghcr.io/1g0s/greencity-backcore:latest
+    container_name: greencity-backcore-2
+    environment:
+      PROFILE: docker
+      SERVER_ID: backcore-2
+      DATASOURCE_URL: jdbc:postgresql://postgres:5432/greencity
+      DATASOURCE_USER: ${DB_USER:-greencity}
+      DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      EMAIL_ADDRESS: ${EMAIL_ADDRESS:-dev@localhost}
+      EMAIL_PASSWORD: ${EMAIL_PASSWORD:-devpass}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-placeholder}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-placeholder}
+      GOOGLE_CLIENT_ID_MANAGER: ${GOOGLE_CLIENT_ID_MANAGER:-placeholder}
+      BUCKET_NAME: ${BUCKET_NAME:-dev-bucket}
+      STATIC_URL: ${STATIC_URL:-http://localhost:8080/}
+      DEFAULT_PROFILE_PICTURE: ${DEFAULT_PROFILE_PICTURE:-https://via.placeholder.com/150}
+      AZURE_CONNECTION_STRING: ${AZURE_CONNECTION_STRING}
+      AZURE_CONTAINER_NAME: ${AZURE_CONTAINER_NAME:-devcontainer}
+      CLOUD_NAME: ${CLOUD_NAME:-dev-cloud}
+      API_KEY: ${API_KEY:-placeholder}
+      API_SECRET: ${API_SECRET:-placeholder}
+      MAX_FILE_SIZE: ${MAX_FILE_SIZE:-10MB}
+      MAX_REQUEST_SIZE: ${MAX_REQUEST_SIZE:-10MB}
+      GOOGLE_APPLICATION_CREDENTIALS: /tmp/google-creds.json
+      CHAT_LINK: http://backuser_pool
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - greencity-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:8080/ 2>&1; e=$?; [ $e -eq 0 ] || [ $e -eq 6 ] || [ $e -eq 8 ]"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+
+  backcore3:
+    image: ghcr.io/1g0s/greencity-backcore:latest
+    container_name: greencity-backcore-3
+    environment:
+      PROFILE: docker
+      SERVER_ID: backcore-3
+      DATASOURCE_URL: jdbc:postgresql://postgres:5432/greencity
+      DATASOURCE_USER: ${DB_USER:-greencity}
+      DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      EMAIL_ADDRESS: ${EMAIL_ADDRESS:-dev@localhost}
+      EMAIL_PASSWORD: ${EMAIL_PASSWORD:-devpass}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-placeholder}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-placeholder}
+      GOOGLE_CLIENT_ID_MANAGER: ${GOOGLE_CLIENT_ID_MANAGER:-placeholder}
+      BUCKET_NAME: ${BUCKET_NAME:-dev-bucket}
+      STATIC_URL: ${STATIC_URL:-http://localhost:8080/}
+      DEFAULT_PROFILE_PICTURE: ${DEFAULT_PROFILE_PICTURE:-https://via.placeholder.com/150}
+      AZURE_CONNECTION_STRING: ${AZURE_CONNECTION_STRING}
+      AZURE_CONTAINER_NAME: ${AZURE_CONTAINER_NAME:-devcontainer}
+      CLOUD_NAME: ${CLOUD_NAME:-dev-cloud}
+      API_KEY: ${API_KEY:-placeholder}
+      API_SECRET: ${API_SECRET:-placeholder}
+      MAX_FILE_SIZE: ${MAX_FILE_SIZE:-10MB}
+      MAX_REQUEST_SIZE: ${MAX_REQUEST_SIZE:-10MB}
+      GOOGLE_APPLICATION_CREDENTIALS: /tmp/google-creds.json
+      CHAT_LINK: http://backuser_pool
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - greencity-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:8080/ 2>&1; e=$?; [ $e -eq 0 ] || [ $e -eq 6 ] || [ $e -eq 8 ]"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+
+  # ===========================================
+  # BACKUSER INSTANCES (x3)
+  # ===========================================
+  backuser1:
+    image: ghcr.io/1g0s/greencity-backuser:latest
+    container_name: greencity-backuser-1
+    environment:
+      PROFILE: docker
+      SERVER_ID: backuser-1
+      DATASOURCE_URL: jdbc:postgresql://postgres:5432/greencity
+      DATASOURCE_USER: ${DB_USER:-greencity}
+      DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      EMAIL_ADDRESS: ${EMAIL_ADDRESS:-dev@localhost}
+      EMAIL_PASSWORD: ${EMAIL_PASSWORD:-devpass}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-placeholder}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-placeholder}
+      GOOGLE_CLIENT_ID_MANAGER: ${GOOGLE_CLIENT_ID_MANAGER:-placeholder}
+      AZURE_CONNECTION_STRING: ${AZURE_CONNECTION_STRING}
+      AZURE_CONTAINER_NAME: ${AZURE_CONTAINER_NAME:-devcontainer}
+      CLOUD_NAME: ${CLOUD_NAME:-dev-cloud}
+      API_KEY: ${API_KEY:-placeholder}
+      API_SECRET: ${API_SECRET:-placeholder}
+      CHAT_LINK: http://backcore_pool
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - greencity-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:8060/ 2>&1; e=$?; [ $e -eq 0 ] || [ $e -eq 6 ] || [ $e -eq 8 ]"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+
+  backuser2:
+    image: ghcr.io/1g0s/greencity-backuser:latest
+    container_name: greencity-backuser-2
+    environment:
+      PROFILE: docker
+      SERVER_ID: backuser-2
+      DATASOURCE_URL: jdbc:postgresql://postgres:5432/greencity
+      DATASOURCE_USER: ${DB_USER:-greencity}
+      DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      EMAIL_ADDRESS: ${EMAIL_ADDRESS:-dev@localhost}
+      EMAIL_PASSWORD: ${EMAIL_PASSWORD:-devpass}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-placeholder}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-placeholder}
+      GOOGLE_CLIENT_ID_MANAGER: ${GOOGLE_CLIENT_ID_MANAGER:-placeholder}
+      AZURE_CONNECTION_STRING: ${AZURE_CONNECTION_STRING}
+      AZURE_CONTAINER_NAME: ${AZURE_CONTAINER_NAME:-devcontainer}
+      CLOUD_NAME: ${CLOUD_NAME:-dev-cloud}
+      API_KEY: ${API_KEY:-placeholder}
+      API_SECRET: ${API_SECRET:-placeholder}
+      CHAT_LINK: http://backcore_pool
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - greencity-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:8060/ 2>&1; e=$?; [ $e -eq 0 ] || [ $e -eq 6 ] || [ $e -eq 8 ]"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+
+  backuser3:
+    image: ghcr.io/1g0s/greencity-backuser:latest
+    container_name: greencity-backuser-3
+    environment:
+      PROFILE: docker
+      SERVER_ID: backuser-3
+      DATASOURCE_URL: jdbc:postgresql://postgres:5432/greencity
+      DATASOURCE_USER: ${DB_USER:-greencity}
+      DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      EMAIL_ADDRESS: ${EMAIL_ADDRESS:-dev@localhost}
+      EMAIL_PASSWORD: ${EMAIL_PASSWORD:-devpass}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-placeholder}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-placeholder}
+      GOOGLE_CLIENT_ID_MANAGER: ${GOOGLE_CLIENT_ID_MANAGER:-placeholder}
+      AZURE_CONNECTION_STRING: ${AZURE_CONNECTION_STRING}
+      AZURE_CONTAINER_NAME: ${AZURE_CONTAINER_NAME:-devcontainer}
+      CLOUD_NAME: ${CLOUD_NAME:-dev-cloud}
+      API_KEY: ${API_KEY:-placeholder}
+      API_SECRET: ${API_SECRET:-placeholder}
+      CHAT_LINK: http://backcore_pool
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - greencity-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:8060/ 2>&1; e=$?; [ $e -eq 0 ] || [ $e -eq 6 ] || [ $e -eq 8 ]"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+
+  # ===========================================
+  # DATABASE
+  # ===========================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: greencity-postgres-lb
+    environment:
+      POSTGRES_DB: greencity
+      POSTGRES_USER: ${DB_USER:-greencity}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Database password required}
+    volumes:
+      - greencity_lb_pgdata:/var/lib/postgresql/data
+    networks:
+      - greencity-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-greencity} -d greencity"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+networks:
+  greencity-net:
+    driver: bridge
+
+volumes:
+  greencity_lb_pgdata:

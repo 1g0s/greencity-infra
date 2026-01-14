@@ -28,9 +28,10 @@ A user can start doing an environment-friendly habit and track their progress wi
 3. Implement Infrastructure as Code (Vagrant + Ansible)
 4. Implement a Continuous Integration/Continuous Delivery
 5. Setup Load Balancing for Webapp
-   - Deploy couple servers
-   - Set up Apache or Nginx as a load balancer
-   - Try different load-balancing algorithms and options
+   - Deploy multiple backend instances (backcore and backuser)
+   - Set up Nginx as a load balancer
+   - Configure and test different load-balancing algorithms (round-robin, least_conn, ip_hash)
+   - Implement health checks and failover
 6. Implement Automatisation Setup a Webapp
 7. Orchestration Web Application via k8s
 8. Migrate an Application to the Cloud
@@ -63,14 +64,18 @@ greencity-infra/
 ├── .github/workflows/
 │   └── docker.yml           # Docker build & push to ghcr.io
 ├── docker-compose.yml       # Development environment
-├── docker-compose.prod.yml  # Production deployment
+├── docker-compose.prod.yml  # Production deployment (single instance)
+├── docker-compose.lb.yml    # Load-balanced deployment (8 containers)
+├── nginx/
+│   └── nginx-lb.conf        # Nginx load balancer config
 ├── .env.prod.example        # Environment template
 ├── epic.md                  # This file
 ├── README.md                # Quick start guide
 └── tasks/                   # Task completion reports
     ├── task-01-setup-webapp.md
     ├── task-02-containerization.md
-    └── task-04-cicd.md
+    ├── task-04-cicd.md
+    └── task-05-load-balancing.md
 ```
 
 ### Component Repos Include
@@ -214,6 +219,136 @@ ghcr.io/1g0s/greencity-frontend:latest
 
 ---
 
+### Task 5: Load Balancing
+
+**Objective:** Set up Nginx load balancer to distribute traffic across multiple backend instances
+
+**Deployment:** Local Docker on z6 (192.168.1.115) - all containers on single host
+
+**Architecture:**
+```
+z6 Host (192.168.1.115)
+┌──────────────────────────────────────────────────────────────────────────┐
+│  Docker Network: greencity-lb-net                                        │
+│                                                                          │
+│                      ┌─────────────────┐                                 │
+│                      │   Nginx LB      │ ← Port 80 exposed to host       │
+│                      │   (port 80)     │                                 │
+│                      └────────┬────────┘                                 │
+│                               │                                          │
+│              ┌────────────────┴────────────────┐                         │
+│              │                                 │                         │
+│              ▼                                 ▼                         │
+│     ┌────────────────┐                ┌────────────────┐                 │
+│     │  /api/core/*   │                │  /api/user/*   │                 │
+│     │ backcore_pool  │                │ backuser_pool  │                 │
+│     └───────┬────────┘                └───────┬────────┘                 │
+│             │                                 │                          │
+│  ┌──────────┼──────────┐       ┌──────────────┼──────────────┐           │
+│  │          │          │       │              │              │           │
+│  ▼          ▼          ▼       ▼              ▼              ▼           │
+│┌────────┐┌────────┐┌────────┐┌────────┐┌────────┐┌────────┐              │
+││backcore││backcore││backcore││backuser││backuser││backuser│              │
+││   1    ││   2    ││   3    ││   1    ││   2    ││   3    │              │
+││ :8080  ││ :8080  ││ :8080  ││ :8060  ││ :8060  ││ :8060  │              │
+│└───┬────┘└───┬────┘└───┬────┘└───┬────┘└───┬────┘└───┬────┘              │
+│    │         │         │         │         │         │                   │
+│    └─────────┴─────────┴─────────┴─────────┴─────────┘                   │
+│                               │                                          │
+│                               ▼                                          │
+│                      ┌─────────────────┐                                 │
+│                      │   PostgreSQL    │ ← Port 5432 (internal)          │
+│                      │   (port 5432)   │                                 │
+│                      └─────────────────┘                                 │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+**Requirements:**
+- Nginx as reverse proxy and load balancer
+- Multiple instances for both backcore (3) and backuser (3)
+- Health checks with Spring Boot Actuator (`/actuator/health`)
+- Session persistence option for stateful scenarios
+- Separate upstream pools for each backend service
+
+**Deliverables:**
+- [x] `nginx/nginx-lb.conf` - Load balancer configuration with two upstreams
+- [x] `docker-compose.lb.yml` - Multi-instance deployment (8 containers)
+- [x] Health check endpoint verification (via X-Backend-Server header)
+- [x] Load distribution tested with parallel requests
+- [x] Failover tested and verified
+
+**Load Balancing Algorithms to Test:**
+
+| Algorithm | Use Case | Configuration |
+|-----------|----------|---------------|
+| Round Robin | Default, equal distribution | (default) |
+| Least Connections | Uneven request processing times | `least_conn;` |
+| IP Hash | Session persistence | `ip_hash;` |
+| Weighted | Servers with different capacities | `server backcore1:8080 weight=3;` |
+
+**Implementation Steps:**
+
+1. **Create Load Balancer Config with Two Upstreams**
+   ```nginx
+   upstream backcore_servers {
+       least_conn;
+       server backcore1:8080 max_fails=3 fail_timeout=30s;
+       server backcore2:8080 max_fails=3 fail_timeout=30s;
+       server backcore3:8080 max_fails=3 fail_timeout=30s;
+   }
+
+   upstream backuser_servers {
+       least_conn;
+       server backuser1:8060 max_fails=3 fail_timeout=30s;
+       server backuser2:8060 max_fails=3 fail_timeout=30s;
+       server backuser3:8060 max_fails=3 fail_timeout=30s;
+   }
+
+   server {
+       location /api/core/ {
+           proxy_pass http://backcore_servers;
+       }
+       location /api/user/ {
+           proxy_pass http://backuser_servers;
+       }
+   }
+   ```
+
+2. **Update Docker Compose for Multiple Instances**
+   - Define explicit instances in docker-compose.lb.yml
+   - Use Docker Compose `deploy.replicas` or separate service definitions
+
+3. **Configure Spring Boot Actuator Health Checks**
+   - Ensure `/actuator/health` endpoint is exposed
+   - Configure Nginx to use health checks
+
+4. **Test Each Algorithm**
+   - Round Robin: Verify equal distribution
+   - Least Connections: Simulate slow database queries
+   - IP Hash: Verify session stickiness
+
+**Verification Commands:**
+```bash
+# Test backcore load distribution
+for i in {1..10}; do curl -s http://localhost/api/core/actuator/health | jq; done
+
+# Test backuser load distribution
+for i in {1..10}; do curl -s http://localhost/api/user/actuator/health | jq; done
+
+# Check Nginx upstream status
+docker exec nginx cat /var/log/nginx/access.log | tail -20
+
+# Simulate backend failure
+docker stop greencity-backcore-2
+# Verify traffic redirects to healthy backends
+```
+
+**Status:** ✅ COMPLETE (January 12, 2026)
+
+> **Full Report:** [tasks/task-05-load-balancing.md](tasks/task-05-load-balancing.md)
+
+---
+
 ### Progress Tracking
 
 | Task | Status | Notes |
@@ -222,7 +357,7 @@ ghcr.io/1g0s/greencity-frontend:latest
 | 2. Containerization | ✅ Verified | All images built, tested, all 4 containers healthy |
 | 3. Infrastructure as Code | ⬜ Not Started | Vagrant + Ansible local provisioning |
 | 4. CI/CD Pipeline | ✅ Verified | All CI passing, Docker images on ghcr.io |
-| 5. Load Balancing | ⬜ Not Started | |
+| 5. Load Balancing | ✅ Complete | 3+3 backend instances, dual upstream nginx LB, failover working |
 | 6. Automation | ⬜ Not Started | |
 | 7. Kubernetes | ⬜ Not Started | Frontend has Helm chart |
 | 8. Cloud Migration | ⬜ Not Started | |
@@ -247,6 +382,11 @@ ghcr.io/1g0s/greencity-frontend:latest
 | 2026-01-12 | Task 4 | Fixed Docker builds: added CHECKOUT_TOKEN, fixed frontend package-lock.json |
 | 2026-01-12 | Task 4 | Verified all CI/CD: BackCore CI ✅, BackUser CI ✅, Docker builds ✅ (3 images on ghcr.io) |
 | 2026-01-12 | Task 4 | Added Frontend CI workflow (npm ci, lint, stylelint, build, test) - all passing |
+| 2026-01-12 | Task 5 | Created nginx-lb.conf with dual upstreams (backcore_pool, backuser_pool) |
+| 2026-01-12 | Task 5 | Created docker-compose.lb.yml with 8 containers (3 backcore + 3 backuser + postgres + nginx) |
+| 2026-01-12 | Task 5 | Tested load distribution: backcore 37/30/33, backuser 9/11/10 with concurrent requests |
+| 2026-01-12 | Task 5 | Tested failover: stopped backcore-2, traffic routed to healthy backends |
+| 2026-01-12 | Task 5 | Verified backend rejoin: restarted backcore-2, received traffic (12/10/8 distribution) |
 
 ---
 
@@ -259,3 +399,4 @@ All detailed task completion reports are maintained in the `tasks/` directory:
 | Task 1: Setup Webapp | [tasks/task-01-setup-webapp.md](tasks/task-01-setup-webapp.md) |
 | Task 2: Containerization | [tasks/task-02-containerization.md](tasks/task-02-containerization.md) |
 | Task 4: CI/CD Pipeline | [tasks/task-04-cicd.md](tasks/task-04-cicd.md) |
+| Task 5: Load Balancing | [tasks/task-05-load-balancing.md](tasks/task-05-load-balancing.md) |

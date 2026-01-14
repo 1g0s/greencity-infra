@@ -1,0 +1,49 @@
+# GreenCity Main Ansible Playbook
+# Deploys the full GreenCity stack with load balancing
+---
+- name: Deploy GreenCity Application
+  hosts: greencity
+  become: true
+  gather_facts: true
+
+  vars_files:
+    - group_vars/all.yml
+
+  pre_tasks:
+    - name: Display deployment info
+      ansible.builtin.debug:
+        msg: |
+          Deploying GreenCity to {{ inventory_hostname }}
+          IP: {{ ansible_host }}
+          Architecture: {{ ansible_architecture }}
+          OS: {{ ansible_distribution }} {{ ansible_distribution_version }}
+
+  roles:
+    - common
+    - docker
+    - app
+
+  post_tasks:
+    - name: Wait for application to be ready
+      ansible.builtin.uri:
+        url: "http://localhost/nginx-health"
+        return_content: true
+      register: health_check
+      until: health_check.status == 200
+      retries: 30
+      delay: 10
+
+    - name: Display deployment success
+      ansible.builtin.debug:
+        msg: |
+          GreenCity deployment complete!
+
+          Access points:
+          - Frontend:      http://192.168.10.20/
+          - BackCore API:  http://192.168.10.20/api/core/
+          - BackUser API:  http://192.168.10.20/api/user/
+          - Swagger UI:    http://192.168.10.20/swagger-ui/
+          - Nginx Health:  http://192.168.10.20/nginx-health
+
+          Note: Java backends take 2-3 minutes to fully start.
+          Check with: docker compose -f /opt/greencity/docker-compose.yml logs -f

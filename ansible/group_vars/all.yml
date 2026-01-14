@@ -1,0 +1,48 @@
+# GreenCity Global Variables
+# Environment configuration for all roles
+---
+# Application settings
+app_name: greencity
+app_dir: /opt/greencity
+app_user: greencity
+
+# Docker settings
+docker_compose_version: "2.24.0"
+
+# Database
+db_user: greencity
+db_password: GreenCity2026!
+
+# Email (placeholder - replace with real values for production)
+email_address: dev@localhost
+email_password: devpass
+
+# Google APIs (placeholder - replace with real values for production)
+google_client_id: placeholder
+google_api_key: placeholder
+google_client_id_manager: placeholder
+
+# Storage (placeholder)
+bucket_name: dev-bucket
+static_url: http://192.168.10.20/
+default_profile_picture: https://via.placeholder.com/150
+
+# Azure Storage (placeholder)
+azure_connection_string: ""
+azure_container_name: devcontainer
+
+# Cloudinary (placeholder)
+cloud_name: dev-cloud
+api_key: placeholder
+api_secret: placeholder
+
+# File size limits
+max_file_size: 10MB
+max_request_size: 10MB
+
+# Container images (from ghcr.io)
+images:
+  frontend: ghcr.io/1g0s/greencity-frontend:latest
+  backcore: ghcr.io/1g0s/greencity-backcore:latest
+  backuser: ghcr.io/1g0s/greencity-backuser:latest
+  postgres: postgres:15-alpine

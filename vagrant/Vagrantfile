@@ -1,0 +1,35 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+# GreenCity IaC - Vagrant Configuration
+# Creates a VM with Ubuntu 22.04 and provisions it with Ansible
+
+Vagrant.configure("2") do |config|
+  config.vm.define "greencity-vm" do |vm|
+    vm.vm.box = "ubuntu/jammy64"
+    vm.vm.hostname = "greencity-vm"
+
+    # Network configuration - private network for host access
+    vm.vm.network "private_network", ip: "192.168.10.20"
+
+    # VirtualBox provider settings
+    vm.vm.provider "virtualbox" do |vb|
+      vb.name = "greencity-vm"
+      vb.memory = "8192"
+      vb.cpus = 2
+      vb.linked_clone = true
+
+      # Disable audio and USB for better performance
+      vb.customize ["modifyvm", :id, "--audio", "none"]
+      vb.customize ["modifyvm", :id, "--usb", "off"]
+    end
+
+    # Ansible provisioning
+    vm.vm.provision "ansible" do |ansible|
+      ansible.playbook = "../ansible/playbook.yml"
+      ansible.inventory_path = "../ansible/inventory.yml"
+      ansible.limit = "greencity"
+      ansible.verbose = "v"
+    end
+  end
+end

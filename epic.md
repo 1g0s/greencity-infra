@@ -165,30 +165,95 @@ GOOGLE_API_KEY=<api-key>
 
 ### Task 3: Infrastructure as Code (Vagrant + Ansible)
 
-**Objective:** Provision local development/test infrastructure using Infrastructure as Code tools
+**Objective:** Provision clean VM infrastructure and deploy the load-balanced application using IaC tools
+
+**Deployment:** VirtualBox VMs on z6, provisioned by Vagrant, configured by Ansible
+
+**Architecture:**
+```
+z6 Host (192.168.1.115)
+┌────────────────────────────────────────────────────────────────┐
+│  VirtualBox                                                    │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │  greencity-vm (Ubuntu 22.04)                             │  │
+│  │  IP: 192.168.56.20                                       │  │
+│  │  ┌────────────────────────────────────────────────────┐  │  │
+│  │  │  Docker                                            │  │  │
+│  │  │  ├── nginx (load balancer) :80                     │  │  │
+│  │  │  ├── backcore1, backcore2, backcore3 :8080         │  │  │
+│  │  │  ├── backuser1, backuser2, backuser3 :8060         │  │  │
+│  │  │  └── postgres :5432                                │  │  │
+│  │  └────────────────────────────────────────────────────┘  │  │
+│  └──────────────────────────────────────────────────────────┘  │
+└────────────────────────────────────────────────────────────────┘
+```
 
 **Requirements:**
-- Vagrant for VM provisioning (VirtualBox provider)
-- Ansible for configuration management and application deployment
-- Reproducible local environment that mirrors production
+- Vagrant 2.x with VirtualBox provider
+- Ansible 2.9+ on z6 (control node)
+- Clean Ubuntu 22.04 base box
+- SSH key-based authentication
 
 **Deliverables:**
-- [ ] Vagrantfile - Define VM(s) for the application stack
-- [ ] Ansible inventory - Host definitions
-- [ ] Ansible playbooks - Provision and deploy application
-  - [ ] Install Docker, Java 21, and dependencies
-  - [ ] Deploy PostgreSQL container
-  - [ ] Deploy backcore container
-  - [ ] Deploy backuser container
-  - [ ] Deploy frontend container
-- [ ] README for IaC setup instructions
+- [ ] `vagrant/Vagrantfile` - VM definition (Ubuntu 22.04, 2 CPU, 8GB RAM)
+- [ ] `ansible/inventory.yml` - Host definitions
+- [ ] `ansible/playbook.yml` - Main deployment playbook
+- [ ] `ansible/roles/docker/` - Install Docker and Docker Compose
+- [ ] `ansible/roles/app/` - Deploy application stack
+- [ ] `ansible/group_vars/` - Environment variables and secrets
+- [ ] `README-iac.md` - Setup instructions
 
-**Infrastructure:**
-| VM | Purpose | Resources |
-|----|---------|-----------|
-| greencity-vm | Full stack deployment | 2 CPU, 6GB RAM |
+**Implementation Steps:**
 
-**Status:** ⬜ Not Started
+1. **Create Vagrantfile**
+   ```ruby
+   Vagrant.configure("2") do |config|
+     config.vm.box = "ubuntu/jammy64"
+     config.vm.hostname = "greencity-vm"
+     config.vm.network "private_network", ip: "192.168.56.20"
+     config.vm.provider "virtualbox" do |vb|
+       vb.memory = "8192"
+       vb.cpus = 2
+     end
+     config.vm.provision "ansible" do |ansible|
+       ansible.playbook = "../ansible/playbook.yml"
+     end
+   end
+   ```
+
+2. **Create Ansible Playbook**
+   - Install Docker and Docker Compose
+   - Copy docker-compose.lb.yml and nginx config
+   - Pull images from ghcr.io
+   - Start the application stack (8 containers)
+
+3. **Verify Deployment**
+   ```bash
+   vagrant up
+   curl http://192.168.56.20/api/core/actuator/health
+   curl http://192.168.56.20/api/user/actuator/health
+   ```
+
+**Verification Commands:**
+```bash
+# Start VM and provision
+cd vagrant && vagrant up
+
+# SSH into VM
+vagrant ssh
+
+# Check application status
+curl http://192.168.56.20/nginx-health
+curl http://192.168.56.20/api/core/v3/api-docs
+curl http://192.168.56.20/api/user/v3/api-docs
+
+# Destroy and recreate (test reproducibility)
+vagrant destroy -f && vagrant up
+```
+
+**Status:** ✅ COMPLETE (January 14, 2026)
+
+> **Full Report:** [tasks/task-03-iac.md](tasks/task-03-iac.md)
 
 ---
 
@@ -355,7 +420,7 @@ docker stop greencity-backcore-2
 |------|--------|-------|
 | 1. Setup Webapp | ✅ Complete | All services running, network accessible |
 | 2. Containerization | ✅ Verified | All images built, tested, all 4 containers healthy |
-| 3. Infrastructure as Code | ⬜ Not Started | Vagrant + Ansible local provisioning |
+| 3. Infrastructure as Code | ✅ Complete | Vagrant + Ansible, VM at 192.168.10.20 |
 | 4. CI/CD Pipeline | ✅ Verified | All CI passing, Docker images on ghcr.io |
 | 5. Load Balancing | ✅ Complete | 3+3 backend instances, dual upstream nginx LB, failover working |
 | 6. Automation | ⬜ Not Started | |
@@ -387,6 +452,9 @@ docker stop greencity-backcore-2
 | 2026-01-12 | Task 5 | Tested load distribution: backcore 37/30/33, backuser 9/11/10 with concurrent requests |
 | 2026-01-12 | Task 5 | Tested failover: stopped backcore-2, traffic routed to healthy backends |
 | 2026-01-12 | Task 5 | Verified backend rejoin: restarted backcore-2, received traffic (12/10/8 distribution) |
+| 2026-01-14 | Task 3 | Created Vagrant + Ansible IaC structure (12 files, ~745 lines) |
+| 2026-01-14 | Task 3 | VM provisioned at 192.168.10.20 with 8 containers (3 backcore, 3 backuser, postgres, nginx) |
+| 2026-01-14 | Task 3 | Verified: nginx health, load balancing, reproducibility (vagrant destroy && vagrant up) |
 
 ---
 
@@ -398,5 +466,6 @@ All detailed task completion reports are maintained in the `tasks/` directory:
 |------|--------|
 | Task 1: Setup Webapp | [tasks/task-01-setup-webapp.md](tasks/task-01-setup-webapp.md) |
 | Task 2: Containerization | [tasks/task-02-containerization.md](tasks/task-02-containerization.md) |
+| Task 3: Infrastructure as Code | [tasks/task-03-iac.md](tasks/task-03-iac.md) |
 | Task 4: CI/CD Pipeline | [tasks/task-04-cicd.md](tasks/task-04-cicd.md) |
 | Task 5: Load Balancing | [tasks/task-05-load-balancing.md](tasks/task-05-load-balancing.md) |

@@ -1,0 +1,11 @@
+#
+# GreenCity Kubernetes Namespace
+#
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: greencity
+  labels:
+    name: greencity
+    project: greencity
+    environment: prod

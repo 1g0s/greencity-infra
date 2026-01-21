@@ -1,0 +1,161 @@
+#
+# GreenCity BackUser Deployment
+# Java Spring Boot backend for user management and authentication
+#
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backuser
+  namespace: greencity
+  labels:
+    app: backuser
+    component: backend
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: backuser
+  template:
+    metadata:
+      labels:
+        app: backuser
+        component: backend
+    spec:
+      containers:
+        - name: backuser
+          image: 731818487147.dkr.ecr.eu-west-1.amazonaws.com/greencity/backuser:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8060
+              protocol: TCP
+          env:
+            # Spring Profile
+            - name: SPRING_PROFILES_ACTIVE
+              valueFrom:
+                configMapKeyRef:
+                  name: greencity-config
+                  key: SPRING_PROFILES_ACTIVE
+
+            # Database Configuration
+            - name: DATASOURCE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: jdbc_url
+            - name: DATASOURCE_USER
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: username
+            - name: DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: password
+
+            # Service Discovery
+            - name: GREENCITY_SERVER_ADDRESS
+              valueFrom:
+                configMapKeyRef:
+                  name: greencity-config
+                  key: GREENCITY_SERVER_ADDRESS
+
+            # Email Configuration
+            - name: EMAIL_ADDRESS
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: email_address
+            - name: EMAIL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: email_password
+            - name: MAIL_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: greencity-config
+                  key: MAIL_HOST
+            - name: MAIL_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: greencity-config
+                  key: MAIL_PORT
+
+            # Google APIs
+            - name: GOOGLE_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: google_client_id
+            - name: GOOGLE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: google_api_key
+
+            # File Limits
+            - name: MAX_FILE_SIZE
+              valueFrom:
+                configMapKeyRef:
+                  name: greencity-config
+                  key: MAX_FILE_SIZE
+
+            # Liquibase (validates schema, doesn't run migrations)
+            - name: LIQUIBASE_ENABLE
+              valueFrom:
+                configMapKeyRef:
+                  name: greencity-config
+                  key: LIQUIBASE_ENABLE
+
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "500m"
+            limits:
+              memory: "2Gi"
+              cpu: "1000m"
+
+          # Liveness probe - Java startup takes 2-3 minutes
+          livenessProbe:
+            httpGet:
+              path: /swagger-ui.html
+              port: 8060
+            initialDelaySeconds: 180
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+
+          # Readiness probe
+          readinessProbe:
+            httpGet:
+              path: /swagger-ui.html
+              port: 8060
+            initialDelaySeconds: 120
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+          # Startup probe - gives pod more time to start
+          startupProbe:
+            httpGet:
+              path: /swagger-ui.html
+              port: 8060
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30  # 60 + (30 * 10) = 360s max
+
+      # Spread pods across nodes
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - backuser
+                topologyKey: kubernetes.io/hostname

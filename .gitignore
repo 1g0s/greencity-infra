@@ -35,3 +35,20 @@ temp/
 
 # Vagrant
 .vagrant/
+
+# Terraform
+terraform/.terraform/
+terraform/.terraform.lock.hcl
+terraform/*.tfstate
+terraform/*.tfstate.backup
+terraform/terraform.tfvars
+terraform/*.auto.tfvars
+terraform/crash.log
+terraform/.terraform.tfstate.lock.info
+terraform/tfplan
+
+# Keep terraform.tfvars.example
+!terraform/terraform.tfvars.example
+
+# Kubernetes secrets (if generated locally)
+k8s/secrets.yaml

@@ -1,0 +1,45 @@
+#
+# GreenCity ConfigMap - Non-sensitive configuration
+#
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: greencity-config
+  namespace: greencity
+  labels:
+    app: greencity
+data:
+  # Spring Profile
+  SPRING_PROFILES_ACTIVE: "prod"
+
+  # Server Configuration
+  SERVER_SERVLET_CONTEXT_PATH_CORE: "/"
+  SERVER_SERVLET_CONTEXT_PATH_USER: "/"
+
+  # Service Discovery (Kubernetes DNS)
+  GREENCITY_SERVER_ADDRESS: "http://backcore:8080"
+  GREENCITYUSER_SERVER_ADDRESS: "http://backuser:8060"
+
+  # File Upload Limits
+  MAX_FILE_SIZE: "10MB"
+  MAX_REQUEST_SIZE: "100MB"
+
+  # Azure Storage Container
+  AZURE_CONTAINER_NAME: "greencity"
+
+  # Logging
+  LOG_LEVEL_ROOT: "INFO"
+  LOG_LEVEL_APP: "INFO"
+
+  # Liquibase
+  LIQUIBASE_ENABLE: "true"
+
+  # Hibernate
+  HIBERNATE_DDL_AUTO: "validate"
+  HIBERNATE_SHOW_SQL: "false"
+
+  # Email (non-sensitive)
+  MAIL_HOST: "smtp.gmail.com"
+  MAIL_PORT: "587"
+  SMTP_AUTH: "true"
+  SMTP_ENABLE: "true"

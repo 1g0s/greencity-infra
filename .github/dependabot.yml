@@ -1,0 +1,43 @@
+# Dependabot configuration for GreenCity Infrastructure
+# Scans Terraform modules, Docker compose, and GitHub Actions for vulnerabilities
+version: 2
+updates:
+  # Terraform modules
+  - package-ecosystem: "terraform"
+    directory: "/terraform"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "terraform"
+    commit-message:
+      prefix: "deps(terraform):"
+
+  # Docker (docker-compose images)
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "docker"
+    commit-message:
+      prefix: "deps(docker):"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "ci"
+    commit-message:
+      prefix: "deps(actions):"

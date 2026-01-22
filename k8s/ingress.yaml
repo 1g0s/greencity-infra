@@ -1,0 +1,116 @@
+#
+# GreenCity ALB Ingress
+# Routes traffic from ALB to services based on path
+#
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: greencity-ingress
+  namespace: greencity
+  labels:
+    app: greencity
+  annotations:
+    # AWS Load Balancer Controller annotations
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]'
+
+    # Health check configuration
+    alb.ingress.kubernetes.io/healthcheck-protocol: HTTP
+    alb.ingress.kubernetes.io/healthcheck-port: traffic-port
+    alb.ingress.kubernetes.io/healthcheck-interval-seconds: '30'
+    alb.ingress.kubernetes.io/healthcheck-timeout-seconds: '5'
+    alb.ingress.kubernetes.io/healthy-threshold-count: '2'
+    alb.ingress.kubernetes.io/unhealthy-threshold-count: '3'
+
+    # Backend timeout for Java apps (startup can be slow)
+    alb.ingress.kubernetes.io/target-group-attributes: deregistration_delay.timeout_seconds=30
+
+    # Group all rules under same ALB
+    alb.ingress.kubernetes.io/group.name: greencity
+    alb.ingress.kubernetes.io/group.order: '1'
+
+spec:
+  rules:
+    - http:
+        paths:
+          # BackCore API routes
+          - path: /api/core
+            pathType: Prefix
+            backend:
+              service:
+                name: backcore
+                port:
+                  number: 8080
+
+          # BackUser API routes
+          - path: /api/user
+            pathType: Prefix
+            backend:
+              service:
+                name: backuser
+                port:
+                  number: 8060
+
+          # Swagger UI (BackCore)
+          - path: /swagger-ui
+            pathType: Prefix
+            backend:
+              service:
+                name: backcore
+                port:
+                  number: 8080
+
+          # OpenAPI docs (BackCore)
+          - path: /v3/api-docs
+            pathType: Prefix
+            backend:
+              service:
+                name: backcore
+                port:
+                  number: 8080
+
+          # Authentication endpoints (BackUser)
+          - path: /ownSecurity
+            pathType: Prefix
+            backend:
+              service:
+                name: backuser
+                port:
+                  number: 8060
+
+          - path: /googleSecurity
+            pathType: Prefix
+            backend:
+              service:
+                name: backuser
+                port:
+                  number: 8060
+
+          # User management (BackUser)
+          - path: /user
+            pathType: Prefix
+            backend:
+              service:
+                name: backuser
+                port:
+                  number: 8060
+
+          # Management endpoints (BackUser)
+          - path: /management
+            pathType: Prefix
+            backend:
+              service:
+                name: backuser
+                port:
+                  number: 8060
+
+          # Frontend - catch all remaining traffic
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 80

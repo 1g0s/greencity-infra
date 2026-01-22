@@ -33,8 +33,13 @@ A user can start doing an environment-friendly habit and track their progress wi
    - Configure and test different load-balancing algorithms (round-robin, least_conn, ip_hash)
    - Implement health checks and failover
 6. Implement Automatisation Setup a Webapp
-7. Orchestration Web Application via k8s
+7. Orchestration Web Application via k8s (optional - local learning)
 8. Migrate an Application to the Cloud
+9. Security & Vulnerability Scanning
+   - Enable GitHub security features (Dependabot, Secret Scanning)
+   - Implement container vulnerability scanning (Trivy)
+   - Add static code analysis (CodeQL for Java)
+   - Scan Terraform/IaC for misconfigurations
 
 ### Additional Tasks
 - Set up monitoring tools for application performance and infrastructure health
@@ -57,6 +62,101 @@ A user can start doing an environment-friendly habit and track their progress wi
 | **Database** | PostgreSQL | 5432 |
 | **Storage** | Azure Blob / Google Cloud Storage | - |
 
+### DevOps Journey
+
+```mermaid
+flowchart LR
+    subgraph "Foundation"
+        T1[Task 1<br/>Setup Webapp]
+        T2[Task 2<br/>Containerization]
+    end
+
+    subgraph "Automation"
+        T3[Task 3<br/>IaC]
+        T4[Task 4<br/>CI/CD]
+        T6[Task 6<br/>Scripts]
+    end
+
+    subgraph "Scaling"
+        T5[Task 5<br/>Load Balancing]
+        T7[Task 7<br/>K8s Local]
+    end
+
+    subgraph "Production"
+        T8[Task 8<br/>AWS Cloud]
+    end
+
+    T1 --> T2 --> T3 --> T4 --> T5 --> T6 --> T7 --> T8
+
+    style T1 fill:#4ade80,stroke:#166534
+    style T2 fill:#4ade80,stroke:#166534
+    style T3 fill:#4ade80,stroke:#166534
+    style T4 fill:#4ade80,stroke:#166534
+    style T5 fill:#4ade80,stroke:#166534
+    style T6 fill:#4ade80,stroke:#166534
+    style T7 fill:#fbbf24,stroke:#d97706
+    style T8 fill:#4ade80,stroke:#166534
+```
+
+### Target AWS Architecture (Task 8)
+
+```mermaid
+flowchart TB
+    subgraph Internet
+        Users[Users]
+    end
+
+    subgraph AWS["AWS eu-west-1"]
+        subgraph VPC["VPC 10.0.0.0/16"]
+            subgraph Public["Public Subnets"]
+                ALB[Application<br/>Load Balancer]
+                NAT[NAT Gateway]
+            end
+
+            subgraph Private["Private Subnets"]
+                subgraph EKS["EKS Cluster"]
+                    BC[BackCore<br/>Pods x3]
+                    BU[BackUser<br/>Pods x3]
+                    FE[Frontend<br/>Pods x2]
+                end
+                RDS[(RDS<br/>PostgreSQL)]
+            end
+        end
+
+        ECR[ECR<br/>Container Registry]
+        SM[Secrets<br/>Manager]
+        CW[CloudWatch<br/>Logs & Metrics]
+    end
+
+    subgraph GitHub["GitHub"]
+        GH_BC[greencity-backcore]
+        GH_BU[greencity-backuser]
+        GH_FE[greencity-frontend]
+    end
+
+    Users --> ALB
+    ALB --> FE
+    FE --> BC
+    FE --> BU
+    BC --> RDS
+    BU --> RDS
+    BC --> SM
+    BU --> SM
+    EKS --> ECR
+    EKS --> CW
+    Private --> NAT
+    NAT --> Internet
+
+    GH_BC & GH_BU & GH_FE -->|CI/CD| ECR
+
+    style ALB fill:#f97316,stroke:#c2410c
+    style EKS fill:#60a5fa,stroke:#2563eb
+    style RDS fill:#22c55e,stroke:#166534
+    style ECR fill:#a855f7,stroke:#7c3aed
+    style SM fill:#ec4899,stroke:#be185d
+    style CW fill:#14b8a6,stroke:#0d9488
+```
+
 ### Infrastructure Repository Structure
 
 ```
@@ -68,6 +168,25 @@ greencity-infra/
 ├── docker-compose.lb.yml    # Load-balanced deployment (8 containers)
 ├── nginx/
 │   └── nginx-lb.conf        # Nginx load balancer config
+├── terraform/               # AWS infrastructure (Task 8)
+│   ├── main.tf              # Provider, backend
+│   ├── vpc.tf               # VPC, subnets, NAT
+│   ├── eks.tf               # EKS cluster
+│   ├── rds.tf               # PostgreSQL
+│   ├── ecr.tf               # Container registry
+│   └── ...                  # 12 files total
+├── k8s/                     # Kubernetes manifests (Task 8)
+│   ├── namespace.yaml
+│   ├── configmap.yaml
+│   ├── backcore/            # Deployment + Service
+│   ├── backuser/            # Deployment + Service
+│   ├── frontend/            # Deployment + Service
+│   └── ingress.yaml         # ALB routing
+├── scripts/                 # Automation scripts (Task 6 + 8)
+│   ├── ops.sh               # Operations script
+│   ├── deploy.sh            # AWS deployment
+│   ├── destroy.sh           # AWS teardown
+│   └── ...
 ├── .env.prod.example        # Environment template
 ├── epic.md                  # This file
 ├── README.md                # Quick start guide
@@ -75,7 +194,8 @@ greencity-infra/
     ├── task-01-setup-webapp.md
     ├── task-02-containerization.md
     ├── task-04-cicd.md
-    └── task-05-load-balancing.md
+    ├── task-05-load-balancing.md
+    └── task-08-cloud-migration.md
 ```
 
 ### Component Repos Include
@@ -414,22 +534,736 @@ docker stop greencity-backcore-2
 
 ---
 
+### Task 6: Automation
+
+**Objective:** Create operations scripts for unified management of all deployment environments
+
+**Deployment Environments:**
+| Environment | Config File | Description |
+|-------------|-------------|-------------|
+| `prod` | docker-compose.prod.yml | Single instance production |
+| `lb` | docker-compose.lb.yml | Load-balanced (3+3 backends) |
+| `vm` | vagrant/Vagrantfile | Vagrant VM at 192.168.10.20 |
+
+**Architecture:**
+```
+scripts/
+├── ops.sh              # Main operations script
+├── health-check.sh     # Health monitoring
+├── backup.sh           # Database backup
+└── restore.sh          # Database restore
+
+ops.sh [command] [environment]
+├── start   → Start services (prod|lb|vm)
+├── stop    → Stop services
+├── status  → Show container/service status
+├── logs    → View service logs
+├── health  → Run health checks
+├── deploy  → Full deployment (pull + start)
+├── restart → Restart services
+└── cleanup → Remove stopped containers, images
+```
+
+**Deliverables:**
+- [ ] `scripts/ops.sh` - Main operations script with subcommands
+- [ ] `scripts/health-check.sh` - Automated health monitoring
+- [ ] `scripts/backup.sh` - PostgreSQL backup script (pg_dump)
+- [ ] `scripts/restore.sh` - PostgreSQL restore script
+- [ ] Environment-aware operations (prod, lb, vm)
+- [ ] Color-coded output with status indicators
+- [ ] Error handling and validation
+
+**ops.sh Commands:**
+
+```bash
+# Start services
+./scripts/ops.sh start prod    # Single instance
+./scripts/ops.sh start lb      # Load balanced (8 containers)
+./scripts/ops.sh start vm      # Vagrant VM
+
+# Stop services
+./scripts/ops.sh stop lb
+
+# View status
+./scripts/ops.sh status lb
+
+# View logs
+./scripts/ops.sh logs backcore1
+
+# Health check
+./scripts/ops.sh health lb
+
+# Full deployment
+./scripts/ops.sh deploy lb
+
+# Cleanup
+./scripts/ops.sh cleanup
+```
+
+**Health Check Features:**
+- Container status verification (all 8 containers)
+- Endpoint accessibility:
+  - Frontend: /
+  - BackCore: /api/core/, /swagger-ui/
+  - BackUser: /api/user/, /v3/api-docs
+  - Nginx: /nginx-health, /nginx-status
+- Response time measurement
+- Load balancer distribution check (X-Backend-Server header)
+- Automatic alerting on failures
+
+**Backup/Restore Features:**
+- PostgreSQL pg_dump to timestamped archives
+- Restore from backup file
+- Support for all environments
+- Liquibase compatibility (restore triggers migrations)
+
+**Verification Commands:**
+```bash
+# Test all operations
+./scripts/ops.sh start lb
+./scripts/ops.sh status lb
+./scripts/ops.sh health lb
+./scripts/ops.sh logs backcore1
+./scripts/ops.sh stop lb
+
+# Test backup/restore
+./scripts/backup.sh lb
+./scripts/restore.sh backups/postgres-2026-01-14.sql.gz lb
+
+# Test VM operations
+./scripts/ops.sh start vm
+./scripts/ops.sh health vm
+./scripts/ops.sh stop vm
+```
+
+**Status:** ✅ Complete (January 14, 2026)
+
+> **Full Report:** [tasks/task-06-automation.md](tasks/task-06-automation.md)
+
+---
+
+### Task 7: Kubernetes (Local) - Optional
+
+**Objective:** Learn Kubernetes fundamentals with local cluster (minikube/kind)
+
+**Scope:**
+- Deploy application to local Kubernetes cluster
+- Learn pods, deployments, services, ingress
+- Practice kubectl commands
+- Prepare for cloud EKS deployment
+
+**Note:** This task is optional. Task 8 includes full EKS deployment which covers Kubernetes concepts in a cloud context.
+
+**Status:** ⬜ Optional
+
+---
+
+### Task 8: Cloud Migration (AWS)
+
+**Objective:** Deploy application to AWS using production-grade infrastructure with EKS, managed database, and Terraform
+
+**Infrastructure:**
+| Component | AWS Service | Est. Cost |
+|-----------|-------------|-----------|
+| Kubernetes | EKS | $73/mo |
+| Compute | EC2 (t3.large x2) | $120/mo |
+| Database | RDS PostgreSQL | $50/mo |
+| Load Balancer | ALB | $20/mo |
+| Networking | NAT Gateway | $32/mo |
+| Other | ECR, Secrets, CloudWatch | ~$15/mo |
+| **Total** | | **~$310/mo** |
+
+**Deliverables:**
+- [x] Terraform infrastructure (VPC, EKS, RDS, ECR, Secrets Manager, CloudWatch)
+- [x] Kubernetes manifests (deployments, services, ingress for 3 components)
+- [x] CI/CD integration (GitHub Actions → ECR → EKS deploy.yml workflows)
+- [x] Secrets Manager integration (Terraform auto-generates secrets)
+- [x] CloudWatch logging and monitoring (log groups, dashboard, alarms)
+- [x] Deployment scripts (bootstrap, deploy, destroy, kubeconfig)
+
+**Created Files (29 total):**
+- `terraform/` - 12 Terraform files (VPC, EKS, RDS, ECR, IAM, etc.)
+- `k8s/` - 10 Kubernetes manifests (namespace, configmap, deployments, services, ingress)
+- `scripts/` - 4 deployment scripts (bootstrap, deploy, destroy, kubeconfig)
+- Component repos - 3 deploy.yml workflows
+
+**Status:** ✅ COMPLETE (January 18, 2026) - Deployed, tested, and destroyed
+
+**Deployed Infrastructure (now destroyed):**
+- EKS Cluster: greencity-cluster (v1.29, 2x t3.large nodes)
+- RDS PostgreSQL: db.t3.medium, PostgreSQL 15.15
+- ALB URL: http://k8s-greencity-5be9d3386a-531780451.eu-west-1.elb.amazonaws.com/
+- All endpoints verified working (Frontend, Swagger UI, API Docs)
+
+**Cleanup Notes:**
+- Infrastructure destroyed after successful testing to avoid ongoing costs (~$310/mo)
+- Manual cleanup required for AWS LB Controller resources (ALB, target groups, security groups)
+- ECR repositories force-deleted with images
+- All resources verified deleted
+
+> **Full Report:** [tasks/task-08-cloud-migration.md](tasks/task-08-cloud-migration.md)
+
+---
+
+### Task 9: Security & Vulnerability Scanning
+
+**Objective:** Implement security scanning across all repositories
+
+**Tools Implemented:**
+| Tool | Purpose | Repositories |
+|------|---------|--------------|
+| Dependabot | Dependency vulnerability alerts + auto-fix PRs | All 4 repos |
+| Trivy | Filesystem vulnerability scanning (Maven/npm/Docker/Terraform) | All 4 repos |
+
+**Note:** CodeQL and OWASP Dependency Check were not used:
+- CodeQL requires GitHub Advanced Security (GHAS) - paid feature for private repos
+- OWASP Dependency Check takes 30+ minutes to download NVD database
+
+**Repositories Configured:** backcore, backuser, frontend, infra
+
+**Deliverables:**
+- [x] Add dependabot.yml (all 4 repos) - Maven, npm, Docker, Terraform, GitHub Actions
+- [x] Add security.yml workflow - Trivy FS scan (all 4 repos)
+- [x] Add security.yml workflow - Trivy IaC + K8s (infra)
+- [x] Add deploy.yml workflow - AWS deploy, manual-only trigger (all 3 component repos)
+
+**Workflow Results:**
+| Repository | Security Scan | Duration |
+|------------|---------------|----------|
+| backcore | SUCCESS | ~1m 50s |
+| backuser | SUCCESS | ~1m 10s |
+| frontend | SUCCESS | ~1m 8s |
+| infra | SUCCESS | ~36s |
+
+**Status:** ✅ COMPLETE (January 21, 2026)
+
+> **Full Report:** [tasks/task-09-security.md](tasks/task-09-security.md)
+
+---
+
+### Task 10: Monitoring
+
+**Objective:** Set up monitoring tools for application performance and infrastructure health
+
+**Stack:**
+| Component | Tool | Purpose |
+|-----------|------|---------|
+| Infrastructure | CloudWatch | AWS resource metrics (EKS, RDS, ALB) |
+| Application | Prometheus + Grafana | Custom metrics, dashboards |
+| Spring Boot | Micrometer + Actuator | JVM and application metrics |
+| APM | New Relic / Datadog (optional) | Application performance monitoring |
+| Uptime | UptimeRobot / Pingdom | External availability monitoring |
+
+**Architecture:**
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Monitoring Stack                                           │
+│                                                             │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐     │
+│  │ Prometheus  │───▶│  Grafana    │───▶│  Alerts     │     │
+│  │  (scrape)   │    │ (visualize) │    │ (Slack/PD)  │     │
+│  └──────┬──────┘    └─────────────┘    └─────────────┘     │
+│         │                                                   │
+│         ▼                                                   │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  Metrics Endpoints (Spring Boot Actuator)            │   │
+│  │  • BackCore: /actuator/prometheus                    │   │
+│  │  • BackUser: /actuator/prometheus                    │   │
+│  │  • JVM: heap, GC, threads, classloader              │   │
+│  │  • HTTP: request count, latency, status codes       │   │
+│  │  • Custom: business metrics via Micrometer          │   │
+│  └─────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Deliverables:**
+- [ ] Add Micrometer Prometheus registry to both backends
+- [ ] Expose /actuator/prometheus endpoint
+- [ ] Deploy Prometheus to EKS (Helm chart: prometheus-community)
+- [ ] Deploy Grafana with pre-configured JVM and Spring Boot dashboards
+- [ ] Configure CloudWatch alarms for critical metrics (RDS, EKS)
+- [ ] Set up alerting (Slack/PagerDuty integration)
+- [ ] Create runbook for common alerts
+
+**Key Metrics to Monitor:**
+| Category | Metrics |
+|----------|---------|
+| HTTP | Request rate, latency (p50/p95/p99), error rate (4xx/5xx) |
+| JVM | Heap usage, GC pause time, thread count, class loading |
+| Database | HikariCP pool size, connection wait time, query latency |
+| Spring | Active requests, scheduled tasks, cache hit ratio |
+| Infrastructure | CPU, memory, disk, network I/O |
+| Business | User registrations, habits tracked, eco-actions |
+
+**Spring Boot Configuration:**
+```yaml
+# application.yml
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    tags:
+      application: ${spring.application.name}
+```
+
+**Status:** ⬜ Not Started
+
+> **Full Report:** [tasks/task-10-monitoring.md](tasks/task-10-monitoring.md)
+
+---
+
+### Task 11: Logging
+
+**Objective:** Configure centralized logging for tracking application and system logs
+
+**Stack:**
+| Component | Tool | Purpose |
+|-----------|------|---------|
+| Application | Logback (Spring Boot) | Structured JSON logging |
+| Collection | Fluent Bit | Log shipping from containers |
+| Storage | CloudWatch Logs / ELK | Centralized log storage |
+| Analysis | CloudWatch Insights / Kibana | Log querying and visualization |
+
+**Architecture:**
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Logging Pipeline                                           │
+│                                                             │
+│  ┌──────────┐    ┌──────────┐    ┌──────────────────────┐  │
+│  │ BackCore │───▶│ Fluent   │───▶│ CloudWatch Logs      │  │
+│  │ BackUser │    │ Bit      │    │ or Elasticsearch     │  │
+│  │ (Logback)│    └──────────┘    └──────────────────────┘  │
+│  └──────────┘                              │                │
+│                                            ▼                │
+│  ┌──────────┐    ┌──────────────────────────────────────┐  │
+│  │ Frontend │    │ Log Analysis & Dashboards            │  │
+│  │ (nginx)  │───▶│ • CloudWatch Insights                │  │
+│  └──────────┘    │ • Kibana                             │  │
+│                  │ • Error tracking (Sentry)            │  │
+│                  └──────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Log Format (Structured JSON via Logback):**
+```json
+{
+  "timestamp": "2026-01-18T12:00:00.000Z",
+  "level": "INFO",
+  "logger": "ua.greencity.service.UserService",
+  "thread": "http-nio-8080-exec-1",
+  "traceId": "abc123",
+  "spanId": "def456",
+  "message": "User login successful",
+  "userId": 456,
+  "duration": 45,
+  "context": { "ip": "192.168.1.1", "userAgent": "..." }
+}
+```
+
+**Deliverables:**
+- [ ] Configure Logback with JSON encoder (logstash-logback-encoder)
+- [ ] Add MDC (Mapped Diagnostic Context) for request tracing
+- [ ] Integrate with Spring Cloud Sleuth for distributed tracing
+- [ ] Deploy Fluent Bit DaemonSet to EKS
+- [ ] Configure CloudWatch Logs log groups with retention (30 days)
+- [ ] Create CloudWatch Insights queries for common patterns
+- [ ] Set up log-based alerts (error spikes, security events)
+- [ ] Document log schema and common queries
+
+**Logback Configuration:**
+```xml
+<!-- logback-spring.xml -->
+<appender name="JSON" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+        <includeMdcKeyName>traceId</includeMdcKeyName>
+        <includeMdcKeyName>spanId</includeMdcKeyName>
+        <includeMdcKeyName>userId</includeMdcKeyName>
+    </encoder>
+</appender>
+```
+
+**Log Levels:**
+| Level | Usage |
+|-------|-------|
+| ERROR | Exceptions, failures requiring attention |
+| WARN | Unexpected behavior, deprecations |
+| INFO | Business events, API requests |
+| DEBUG | Development troubleshooting (disabled in prod) |
+| TRACE | Detailed debugging (never in prod) |
+
+**Status:** ⬜ Not Started
+
+> **Full Report:** [tasks/task-11-logging.md](tasks/task-11-logging.md)
+
+---
+
+### Task 12: Continuous Code Inspection (CCI)
+
+**Objective:** Implement continuous code quality analysis with SonarQube
+
+**Stack:**
+| Component | Tool | Purpose |
+|-----------|------|---------|
+| Analysis | SonarQube / SonarCloud | Code quality, bugs, vulnerabilities, code smells |
+| Coverage | JaCoCo | Test coverage reporting |
+| Quality Gate | SonarQube | Automated PR quality checks |
+
+**Architecture:**
+```
+┌─────────────────────────────────────────────────────────────┐
+│  CI/CD Pipeline with SonarQube                              │
+│                                                             │
+│  ┌──────────┐    ┌──────────┐    ┌──────────────────────┐  │
+│  │  GitHub  │───▶│  GitHub  │───▶│  SonarQube           │  │
+│  │  Push/PR │    │  Actions │    │  Analysis            │  │
+│  └──────────┘    └──────────┘    └──────────────────────┘  │
+│                       │                    │                │
+│                       ▼                    ▼                │
+│              ┌──────────────┐    ┌──────────────────────┐  │
+│              │ Maven Test   │    │ Quality Gate         │  │
+│              │ + JaCoCo     │    │ • Bugs: 0            │  │
+│              └──────────────┘    │ • Vulnerabilities: 0 │  │
+│                                  │ • Code Smells: <10   │  │
+│                                  │ • Coverage: >80%     │  │
+│                                  │ • Duplication: <3%   │  │
+│                                  └──────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Deliverables:**
+- [ ] Create SonarQube/SonarCloud projects (backcore, backuser, frontend)
+- [ ] Add sonar-maven-plugin to pom.xml
+- [ ] Configure JaCoCo for test coverage reports
+- [ ] Update CI workflow with SonarQube scanner
+- [ ] Configure quality gate rules
+- [ ] Enable PR decoration (comments on PRs)
+- [ ] Fix existing code quality issues
+- [ ] Document coding standards and quality requirements
+
+**Quality Gate Criteria:**
+| Metric | Threshold |
+|--------|-----------|
+| Bugs | 0 (new code) |
+| Vulnerabilities | 0 (new code) |
+| Code Smells | A rating |
+| Coverage | ≥80% on new code |
+| Duplications | ≤3% on new code |
+
+**Maven Configuration:**
+```xml
+<!-- pom.xml -->
+<plugin>
+    <groupId>org.sonarsource.scanner.maven</groupId>
+    <artifactId>sonar-maven-plugin</artifactId>
+    <version>3.10.0.2594</version>
+</plugin>
+<plugin>
+    <groupId>org.jacoco</groupId>
+    <artifactId>jacoco-maven-plugin</artifactId>
+    <version>0.8.11</version>
+</plugin>
+```
+
+**Workflow Integration:**
+```yaml
+# .github/workflows/ci.yml addition
+- name: SonarQube Scan
+  run: |
+    mvn verify sonar:sonar \
+      -Dsonar.projectKey=greencity-backcore \
+      -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }} \
+      -Dsonar.login=${{ secrets.SONAR_TOKEN }}
+```
+
+**Status:** ⬜ Not Started
+
+> **Full Report:** [tasks/task-12-cci.md](tasks/task-12-cci.md)
+
+---
+
+### Task 13: Artifact Management
+
+**Objective:** Manage build artifacts with proper versioning and storage
+
+**Stack:**
+| Artifact Type | Storage | Purpose |
+|---------------|---------|---------|
+| Container Images | ECR / ghcr.io | Docker images |
+| Maven Artifacts | Nexus / GitHub Packages | JAR files, dependencies |
+| Build Outputs | S3 | Reports, coverage, static assets |
+
+**Architecture:**
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Artifact Flow                                              │
+│                                                             │
+│  ┌──────────┐    ┌──────────────────────────────────────┐  │
+│  │  CI/CD   │───▶│  Artifact Registries                 │  │
+│  │  Build   │    │  ┌────────────┐  ┌────────────────┐  │  │
+│  └──────────┘    │  │ ghcr.io    │  │ ECR (AWS)      │  │  │
+│       │          │  │ (dev/test) │  │ (production)   │  │  │
+│       │          │  └────────────┘  └────────────────┘  │  │
+│       │          │                                      │  │
+│       │          │  ┌────────────────────────────────┐  │  │
+│       │          │  │ Nexus / GitHub Packages        │  │  │
+│       │          │  │ (Maven artifacts, shared libs) │  │  │
+│       │          │  └────────────────────────────────┘  │  │
+│       │          └──────────────────────────────────────┘  │
+│       │                                                     │
+│       ▼                                                     │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │  Versioning Strategy                                  │  │
+│  │  • main branch  → :latest, :sha-abc123               │  │
+│  │  • tags (v1.0)  → :v1.0.0, :v1.0, :v1                │  │
+│  │  • PR builds    → :pr-123                            │  │
+│  │  • Maven        → SNAPSHOT / Release versions        │  │
+│  └──────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Deliverables:**
+- [ ] Implement semantic versioning for releases
+- [ ] Configure image tagging strategy (latest, sha, semver)
+- [ ] Set up ECR lifecycle policies (cleanup old images)
+- [ ] Configure ghcr.io retention policies
+- [ ] Set up Nexus or GitHub Packages for Maven artifacts (optional)
+- [ ] Create S3 bucket for build reports and coverage
+- [ ] Configure Maven release plugin for version management
+- [ ] Document artifact locations and access
+
+**Versioning Strategy:**
+| Branch/Tag | Docker Tag | Maven Version | Retention |
+|------------|------------|---------------|-----------|
+| main | :latest, :sha-{short} | X.Y.Z-SNAPSHOT | Keep last 10 |
+| v*.*.* | :v1.2.3, :v1.2, :v1 | X.Y.Z | Keep all releases |
+| PR | :pr-{number} | - | Delete after merge |
+| feature/* | :feature-{name} | - | Delete after 7 days |
+
+**ECR Lifecycle Policy:**
+```json
+{
+  "rules": [
+    {
+      "rulePriority": 1,
+      "description": "Keep last 10 images",
+      "selection": {
+        "tagStatus": "any",
+        "countType": "imageCountMoreThan",
+        "countNumber": 10
+      },
+      "action": { "type": "expire" }
+    }
+  ]
+}
+```
+
+**Maven Release Configuration:**
+```xml
+<!-- pom.xml -->
+<plugin>
+    <groupId>org.apache.maven.plugins</groupId>
+    <artifactId>maven-release-plugin</artifactId>
+    <version>3.0.1</version>
+    <configuration>
+        <tagNameFormat>v@{project.version}</tagNameFormat>
+    </configuration>
+</plugin>
+```
+
+**Status:** ⬜ Not Started
+
+> **Full Report:** [tasks/task-13-artifact-management.md](tasks/task-13-artifact-management.md)
+
+---
+
+### Task 14: Scalability & Capacity Planning
+
+**Objective:** Monitor resource usage and implement auto-scaling for handling variable load
+
+**Stack:**
+| Component | Tool | Purpose |
+|-----------|------|---------|
+| Metrics | CloudWatch Metrics | CPU, memory, network monitoring |
+| Autoscaling | Kubernetes HPA | Horizontal Pod Autoscaler |
+| Cluster Scaling | Cluster Autoscaler / Karpenter | Node-level scaling |
+| Load Testing | Gatling / k6 | Performance and load testing (Java-friendly) |
+| Cost Analysis | AWS Cost Explorer | Resource cost tracking |
+
+**Architecture:**
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Auto-Scaling Architecture                                  │
+│                                                             │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐     │
+│  │  CloudWatch │───▶│    HPA      │───▶│  Scale Pods │     │
+│  │   Metrics   │    │ (CPU >70%)  │    │  (3 → 10)   │     │
+│  └─────────────┘    └─────────────┘    └─────────────┘     │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  Horizontal Pod Autoscaler (per service)             │   │
+│  │  • BackCore: min=3, max=10, CPU target=70%          │   │
+│  │  • BackUser: min=3, max=10, CPU target=70%          │   │
+│  │  • Frontend: min=2, max=5, CPU target=80%           │   │
+│  │  • Scale-down stabilization: 5 min                   │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐     │
+│  │  Cluster    │───▶│   Karpenter │───▶│ Scale Nodes │     │
+│  │  Pressure   │    │ (Provision) │    │  (2 → 6)    │     │
+│  └─────────────┘    └─────────────┘    └─────────────┘     │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Deliverables:**
+- [ ] Configure Kubernetes resource requests and limits for all pods
+- [ ] Deploy Horizontal Pod Autoscaler (HPA) for backcore, backuser, frontend
+- [ ] Set up Cluster Autoscaler or Karpenter for node scaling
+- [ ] Create CloudWatch dashboards for resource utilization
+- [ ] Implement load testing with Gatling or k6
+- [ ] Document scaling thresholds and capacity limits
+- [ ] Set up cost alerts and budgets in AWS
+- [ ] Create capacity planning document
+
+**Resource Configuration (Java Backend):**
+```yaml
+# Deployment resource config for Java apps
+resources:
+  requests:
+    cpu: "500m"
+    memory: "1Gi"
+  limits:
+    cpu: "2000m"
+    memory: "2Gi"
+```
+
+**HPA Configuration:**
+```yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: backcore-hpa
+  namespace: greencity
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: backcore
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 25
+        periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 15
+```
+
+**Load Testing (Gatling - Scala DSL):**
+```scala
+// GreenCitySimulation.scala
+class GreenCitySimulation extends Simulation {
+  val httpProtocol = http
+    .baseUrl("https://api.greencity.example.com")
+    .acceptHeader("application/json")
+
+  val scn = scenario("Load Test")
+    .exec(http("Health Check")
+      .get("/api/core/actuator/health")
+      .check(status.is(200)))
+    .pause(1)
+    .exec(http("Get Habits")
+      .get("/api/core/habits")
+      .check(status.is(200)))
+
+  setUp(
+    scn.inject(
+      rampUsers(100).during(2.minutes),
+      constantUsersPerSec(50).during(5.minutes),
+      rampUsers(200).during(2.minutes)
+    )
+  ).protocols(httpProtocol)
+}
+```
+
+**Key Metrics to Track:**
+| Metric | Warning | Critical | Action |
+|--------|---------|----------|--------|
+| CPU Utilization | >70% | >90% | Scale up pods |
+| Memory Utilization | >75% | >90% | Scale up / check for leaks |
+| JVM Heap Usage | >80% | >95% | Increase heap / check GC |
+| Request Latency (p99) | >500ms | >1s | Investigate/scale |
+| Error Rate | >1% | >5% | Alert + investigate |
+| DB Connection Pool | >80% | >95% | Increase pool size |
+| Pod Restarts | >3/hour | >10/hour | Investigate OOM |
+
+**JVM Tuning for Containers:**
+```yaml
+env:
+  - name: JAVA_OPTS
+    value: >-
+      -XX:+UseContainerSupport
+      -XX:MaxRAMPercentage=75.0
+      -XX:InitialRAMPercentage=50.0
+      -XX:+UseG1GC
+      -XX:MaxGCPauseMillis=200
+```
+
+**Cost Optimization:**
+- Use Spot instances for non-critical workloads (up to 70% savings)
+- Right-size instances based on actual usage patterns
+- Implement pod disruption budgets for graceful scaling
+- Schedule scale-down during off-peak hours (nights, weekends)
+- Use RDS Reserved Instances for predictable database costs
+
+**Status:** ⬜ Not Started
+
+> **Full Report:** [tasks/task-14-scalability.md](tasks/task-14-scalability.md)
+
+---
+
 ### Progress Tracking
 
 | Task | Status | Notes |
 |------|--------|-------|
 | 1. Setup Webapp | ✅ Complete | All services running, network accessible |
-| 2. Containerization | ✅ Verified | All images built, tested, all 4 containers healthy |
+| 2. Containerization | ✅ Complete | All images built, tested, all 4 containers healthy |
 | 3. Infrastructure as Code | ✅ Complete | Vagrant + Ansible, VM at 192.168.10.20 |
-| 4. CI/CD Pipeline | ✅ Verified | All CI passing, Docker images on ghcr.io |
+| 4. CI/CD Pipeline | ✅ Complete | All CI passing, Docker images on ghcr.io |
 | 5. Load Balancing | ✅ Complete | 3+3 backend instances, dual upstream nginx LB, failover working |
-| 6. Automation | ⬜ Not Started | |
-| 7. Kubernetes | ⬜ Not Started | Frontend has Helm chart |
-| 8. Cloud Migration | ⬜ Not Started | |
-| Monitoring | ⬜ Not Started | |
-| Logging | ⬜ Not Started | |
-| CCI | ⬜ Not Started | SonarQube configured |
-| Artifact Management | ⬜ Not Started | |
+| 6. Automation | ✅ Complete | ops.sh, health-check.sh, backup.sh, restore.sh (~820 lines) |
+| 7. Kubernetes (Local) | ⬜ Optional | minikube/kind local learning |
+| 8. Cloud Migration (AWS) | ✅ Complete | Deployed, tested, destroyed. Terraform + K8s manifests + CI/CD ready |
+| 9. Security Scanning | ✅ Complete | Dependabot, CodeQL, Trivy, OWASP, npm audit - 11 files |
+| 10. Monitoring | ⬜ Not Started | Micrometer + Prometheus + Grafana, CloudWatch |
+| 11. Logging | ⬜ Not Started | Logback + Fluent Bit + CloudWatch Logs |
+| 12. CCI | ⬜ Not Started | SonarQube + JaCoCo integration |
+| 13. Artifact Management | ⬜ Not Started | ECR lifecycle, Maven release plugin |
+| 14. Scalability | ⬜ Not Started | HPA, Karpenter, Gatling load testing, JVM tuning |
 
 ---
 
@@ -455,6 +1289,24 @@ docker stop greencity-backcore-2
 | 2026-01-14 | Task 3 | Created Vagrant + Ansible IaC structure (12 files, ~745 lines) |
 | 2026-01-14 | Task 3 | VM provisioned at 192.168.10.20 with 8 containers (3 backcore, 3 backuser, postgres, nginx) |
 | 2026-01-14 | Task 3 | Verified: nginx health, load balancing, reproducibility (vagrant destroy && vagrant up) |
+| 2026-01-14 | Task 6 | Created automation scripts (ops.sh, health-check.sh, backup.sh, restore.sh) ~820 lines |
+| 2026-01-14 | Task 6 | Tested: container status, health checks, load distribution, backup/restore |
+| 2026-01-18 | Task 8 | Created Terraform infrastructure (12 files): VPC, EKS, RDS, ECR, IAM, security groups, CloudWatch |
+| 2026-01-18 | Task 8 | Created Kubernetes manifests (10 files): namespace, configmap, deployments, services, ingress |
+| 2026-01-18 | Task 8 | Created deployment scripts (4 files): bootstrap-terraform.sh, deploy.sh, destroy.sh, kubeconfig.sh |
+| 2026-01-18 | Task 8 | Added deploy.yml workflows to all 3 component repos (backcore, backuser, frontend) |
+| 2026-01-18 | Task 8 | Infrastructure ready for deployment (~$310/mo estimated cost) |
+| 2026-01-18 | Task 8 | Deployed to AWS: bootstrap → terraform apply → ECR push → kubectl apply |
+| 2026-01-18 | Task 8 | Fixed: IAM permissions, PostgreSQL 15.15, security groups, RDS connectivity |
+| 2026-01-18 | Task 8 | Verified: All pods running, ALB endpoints responding (Frontend, Swagger, API) |
+| 2026-01-18 | Task 8 | ALB URL: http://k8s-greencity-5be9d3386a-531780451.eu-west-1.elb.amazonaws.com/ |
+| 2026-01-18 | Task 8 | Infrastructure destroyed: terraform destroy + manual cleanup (ALB, TGs, SGs, ECR) |
+| 2026-01-18 | Task 8 | Verified all resources deleted: No EKS, RDS, VPC, ECR, or ALB remaining |
+| 2026-01-21 | Task 9 | Added Dependabot configuration to all 4 repos (Maven, npm, Terraform, Docker, GitHub Actions) |
+| 2026-01-21 | Task 9 | Added Trivy security scanning workflows (FS scan, IaC scan, K8s manifest scan) |
+| 2026-01-21 | Task 9 | Removed CodeQL (requires GHAS), SARIF upload (requires GHAS), OWASP Dependency Check (too slow) |
+| 2026-01-21 | Task 9 | Added deploy.yml workflows (manual-only trigger) to all 3 component repos |
+| 2026-01-21 | Task 9 | Final commits: backcore (f6b4de8), backuser (18c645d), frontend (721566e) - all workflows passing |
 
 ---
 
@@ -469,3 +1321,7 @@ All detailed task completion reports are maintained in the `tasks/` directory:
 | Task 3: Infrastructure as Code | [tasks/task-03-iac.md](tasks/task-03-iac.md) |
 | Task 4: CI/CD Pipeline | [tasks/task-04-cicd.md](tasks/task-04-cicd.md) |
 | Task 5: Load Balancing | [tasks/task-05-load-balancing.md](tasks/task-05-load-balancing.md) |
+| Task 6: Automation | [tasks/task-06-automation.md](tasks/task-06-automation.md) |
+| Task 7: Kubernetes (Local) | Optional - local K8s learning |
+| Task 8: Cloud Migration (AWS) | [tasks/task-08-cloud-migration.md](tasks/task-08-cloud-migration.md) |
+| Task 9: Security & Scanning | [tasks/task-09-security.md](tasks/task-09-security.md) |

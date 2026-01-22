@@ -1,0 +1,20 @@
+#
+# GreenCity BackCore Service
+#
+apiVersion: v1
+kind: Service
+metadata:
+  name: backcore
+  namespace: greencity
+  labels:
+    app: backcore
+    component: backend
+spec:
+  type: ClusterIP
+  selector:
+    app: backcore
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+      protocol: TCP

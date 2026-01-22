@@ -13,9 +13,6 @@ jobs:
   trivy-fs-scan:
     name: Trivy Filesystem Scanner
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      security-events: write
 
     steps:
       - name: Checkout code
@@ -26,33 +23,13 @@ jobs:
         with:
           scan-type: 'fs'
           scan-ref: '.'
-          severity: 'CRITICAL,HIGH'
-          format: 'sarif'
-          output: 'trivy-fs-results.sarif'
-          ignore-unfixed: true
-
-      - name: Upload Trivy FS scan results to GitHub Security
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: 'trivy-fs-results.sarif'
-          category: 'trivy-fs'
-
-      - name: Run Trivy scanner (table output)
-        uses: aquasecurity/trivy-action@master
-        if: always()
-        with:
-          scan-type: 'fs'
-          scan-ref: '.'
           severity: 'CRITICAL,HIGH,MEDIUM'
           format: 'table'
+          exit-code: '0'
 
   trivy-iac-scan:
     name: Trivy IaC Scanner (Terraform)
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      security-events: write
 
     steps:
       - name: Checkout code
@@ -64,31 +41,12 @@ jobs:
           scan-type: 'config'
           scan-ref: './terraform'
           severity: 'CRITICAL,HIGH,MEDIUM'
-          format: 'sarif'
-          output: 'trivy-iac-results.sarif'
-
-      - name: Upload Trivy IaC scan results to GitHub Security
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: 'trivy-iac-results.sarif'
-          category: 'trivy-iac'
-
-      - name: Run Trivy IaC scanner (table output)
-        uses: aquasecurity/trivy-action@master
-        if: always()
-        with:
-          scan-type: 'config'
-          scan-ref: './terraform'
-          severity: 'CRITICAL,HIGH,MEDIUM'
           format: 'table'
+          exit-code: '0'
 
   trivy-k8s-scan:
     name: Trivy Kubernetes Manifests Scanner
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      security-events: write
 
     steps:
       - name: Checkout code
@@ -100,21 +58,5 @@ jobs:
           scan-type: 'config'
           scan-ref: './k8s'
           severity: 'CRITICAL,HIGH,MEDIUM'
-          format: 'sarif'
-          output: 'trivy-k8s-results.sarif'
-
-      - name: Upload Trivy K8s scan results to GitHub Security
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: 'trivy-k8s-results.sarif'
-          category: 'trivy-k8s'
-
-      - name: Run Trivy K8s scanner (table output)
-        uses: aquasecurity/trivy-action@master
-        if: always()
-        with:
-          scan-type: 'config'
-          scan-ref: './k8s'
-          severity: 'CRITICAL,HIGH,MEDIUM'
           format: 'table'
+          exit-code: '0'

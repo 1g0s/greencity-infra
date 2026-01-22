@@ -1258,7 +1258,7 @@ env:
 | 6. Automation | ✅ Complete | ops.sh, health-check.sh, backup.sh, restore.sh (~820 lines) |
 | 7. Kubernetes (Local) | ⬜ Optional | minikube/kind local learning |
 | 8. Cloud Migration (AWS) | ✅ Complete | Deployed, tested, destroyed. Terraform + K8s manifests + CI/CD ready |
-| 9. Security Scanning | ✅ Complete | Dependabot, CodeQL, Trivy, OWASP, npm audit - 11 files |
+| 9. Security Scanning | ✅ Complete | Dependabot + Trivy (all 4 repos), Dependabot PRs processed |
 | 10. Monitoring | ⬜ Not Started | Micrometer + Prometheus + Grafana, CloudWatch |
 | 11. Logging | ⬜ Not Started | Logback + Fluent Bit + CloudWatch Logs |
 | 12. CCI | ⬜ Not Started | SonarQube + JaCoCo integration |
@@ -1307,6 +1307,9 @@ env:
 | 2026-01-21 | Task 9 | Removed CodeQL (requires GHAS), SARIF upload (requires GHAS), OWASP Dependency Check (too slow) |
 | 2026-01-21 | Task 9 | Added deploy.yml workflows (manual-only trigger) to all 3 component repos |
 | 2026-01-21 | Task 9 | Final commits: backcore (f6b4de8), backuser (18c645d), frontend (721566e) - all workflows passing |
+| 2026-01-22 | Task 9 | Simplified infra security.yml - removed SARIF uploads (61 lines removed) |
+| 2026-01-22 | Task 9 | Closed Dependabot PR #2 (codeql-action) - no longer needed |
+| 2026-01-22 | Task 9 | Merged Dependabot PR #1 (docker/build-push-action v5→v6) - updated branch, all checks passed |
 
 ---
 

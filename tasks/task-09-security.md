@@ -136,8 +136,8 @@ updates:
 ### Dependabot Activity
 
 Dependabot immediately created PRs after configuration:
-- `deps(actions): bump github/codeql-action from 3 to 4`
-- `deps(actions): bump docker/build-push-action from 5 to 6`
+- `deps(actions): bump github/codeql-action from 3 to 4` - **Closed** (removed SARIF uploads)
+- `deps(actions): bump docker/build-push-action from 5 to 6` - **Merged** (updated branch, all checks passed)
 
 ---
 
@@ -167,6 +167,18 @@ Dependabot immediately created PRs after configuration:
 
 **Resolution:** Changed deploy workflows to manual-only trigger (`workflow_dispatch`).
 
+### Issue 5: Infra security.yml Still Had SARIF Uploads
+
+**Problem:** The greencity-infra `security.yml` still referenced `github/codeql-action/upload-sarif@v3` for SARIF uploads, triggering Dependabot PRs for an action we don't use.
+
+**Resolution:** Simplified infra `security.yml` to remove all SARIF upload steps (removed 61 lines), matching the pattern used in other repos.
+
+### Issue 6: Dependabot PR Branch Outdated
+
+**Problem:** Dependabot PR #1 (`docker/build-push-action` v5→v6) failed because the branch was created before `k8s/` and `terraform/` directories were added. Trivy scans failed with "no such file or directory".
+
+**Resolution:** Updated the Dependabot branch with latest main using GitHub API. All checks passed, PR merged.
+
 ---
 
 ## Commits
@@ -187,6 +199,7 @@ Dependabot immediately created PRs after configuration:
 | frontend | 721566e | Simplify security workflow - use Trivy only |
 | infra | 7592bad | Add security scanning workflows (Task 9) |
 | infra | adf63fb | Add k8s manifests, terraform config, and scripts |
+| infra | d2c8223 | Simplify security workflow - remove SARIF uploads (requires GHAS) |
 
 ---
 
